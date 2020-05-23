@@ -6,8 +6,7 @@
  * Change Logs:
  * Date           Author       Notes
  * 2017/10/5      Bernard      the first version
- * 2018/09/17     Jesven       fix: in _signal_deliver RT_THREAD_STAT_MASK to RT_THREAD_STAT_SIGNAL_MASK
- * 2018/11/22     Jesven       in smp version rt_hw_context_switch_to add a param
+ * 2019/02/15     Jesven       fixed the problem of si_list
  */
 
 #include <stdint.h>
@@ -22,8 +21,8 @@
 #define RT_SIG_INFO_MAX 32
 #endif
 
-#define DBG_TAG     "SIGN"
-#define DBG_LVL     DBG_WARNING
+#define DBG_TAG           "SIGN"
+#define DBG_LVL           DBG_WARNING
 #include <rtdbg.h>
 
 #define sig_mask(sig_no)    (1u << sig_no)
@@ -52,31 +51,14 @@ static void _signal_entry(void *parameter)
     /* handle signal */
     rt_thread_handle_sig(RT_FALSE);
 
-#ifdef RT_USING_SMP
-    {
-        struct rt_cpu* pcpu = rt_cpu_self();
-
-        pcpu->current_thread->cpus_lock_nest--;
-        if (pcpu->current_thread->cpus_lock_nest == 0)
-        {
-            pcpu->current_thread->scheduler_lock_nest--;
-        }
-
-    }
-#else
     /* return to thread */
     tid->sp = tid->sig_ret;
     tid->sig_ret = RT_NULL;
-#endif
 
     LOG_D("switch back to: 0x%08x\n", tid->sp);
     tid->stat &= ~RT_THREAD_STAT_SIGNAL;
 
-#ifdef RT_USING_SMP
-    rt_hw_context_switch_to((rt_base_t)&parameter, tid);
-#else
     rt_hw_context_switch_to((rt_ubase_t)&(tid->sp));
-#endif /*RT_USING_SMP*/
 }
 
 /*
@@ -134,26 +116,11 @@ static void _signal_deliver(rt_thread_t tid)
             /* add signal state */
             tid->stat |= (RT_THREAD_STAT_SIGNAL | RT_THREAD_STAT_SIGNAL_PENDING);
 
-#ifdef RT_USING_SMP
-            {
-                int cpu_id;
-
-                cpu_id = tid->oncpu;
-                if ((cpu_id != RT_CPU_DETACHED) && (cpu_id != rt_hw_cpu_id()))
-                {
-                    rt_uint32_t cpu_mask;
-
-                    cpu_mask = RT_CPU_MASK ^ (1 << cpu_id);
-                    rt_hw_ipi_send(RT_SCHEDULE_IPI, cpu_mask);
-                }
-            }
-#else
             /* point to the signal handle entry */
             tid->stat &= ~RT_THREAD_STAT_SIGNAL_PENDING;
             tid->sig_ret = tid->sp;
             tid->sp = rt_hw_stack_init((void *)_signal_entry, RT_NULL,
                                        (void *)((char *)tid->sig_ret - 32), RT_NULL);
-#endif
 
             rt_hw_interrupt_enable(level);
             LOG_D("signal stack pointer @ 0x%08x", tid->sp);
@@ -167,44 +134,6 @@ static void _signal_deliver(rt_thread_t tid)
         }
     }
 }
-
-#ifdef RT_USING_SMP
-void *rt_signal_check(void* context)
-{
-    rt_base_t level;
-    int cpu_id;
-    struct rt_cpu* pcpu;
-    struct rt_thread *current_thread;
-
-    level = rt_hw_interrupt_disable();
-    cpu_id = rt_hw_cpu_id();
-    pcpu   = rt_cpu_index(cpu_id);
-    current_thread = pcpu->current_thread;
-
-    if (pcpu->irq_nest)
-    {
-        rt_hw_interrupt_enable(level);
-        return context;
-    }
-
-    if (current_thread->cpus_lock_nest == 1)
-    {
-        if (current_thread->stat & RT_THREAD_STAT_SIGNAL_PENDING)
-        {
-            void *sig_context;
-
-            current_thread->stat &= ~RT_THREAD_STAT_SIGNAL_PENDING;
-
-            rt_hw_interrupt_enable(level);
-            sig_context = rt_hw_stack_init((void *)_signal_entry, context,
-                    (void *)(context - 32), RT_NULL);
-            return sig_context;
-        }
-    }
-    rt_hw_interrupt_enable(level);
-    return context;
-}
-#endif
 
 rt_sighandler_t rt_signal_install(int signo, rt_sighandler_t handler)
 {

@@ -1,6 +1,3 @@
-config ARCH_CPU_64BIT
-    bool
-
 config ARCH_ARM
     bool
 
@@ -91,18 +88,6 @@ config ARCH_POWERPC
     bool
 
 config ARCH_RISCV
-    bool
-
-config ARCH_RISCV_FPU
-    bool
-
-config ARCH_RISCV32
-    select ARCH_RISCV
-    bool
-
-config ARCH_RISCV64
-    select ARCH_RISCV
-    select ARCH_CPU_64BIT
     bool
 
 config ARCH_IA32

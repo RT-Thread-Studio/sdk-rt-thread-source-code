@@ -12,12 +12,14 @@
 #define _COMMON_MIPS_H_
 
 #include "mips_cfg.h"
-#include "ptrace.h"
+
 #include "mips_types.h"
-#include "asm.h"
+#include "mips_asm.h"
+#include "mips_def.h"
 #include "mips_regs.h"
 #include "mips_addrspace.h"
 #include "mips_cache.h"
-#include "exception.h"
+#include "mips_context.h"
+#include "mips_excpt.h"
 
 #endif /* _COMMON_MIPS_H_ */

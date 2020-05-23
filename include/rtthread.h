@@ -13,7 +13,6 @@
  * 2010-04-11     yi.qiu       add module feature
  * 2013-06-24     Bernard      add rt_kprintf re-define when not use RT_USING_CONSOLE.
  * 2016-08-09     ArdaFu       add new thread and interrupt hook.
- * 2018-11-22     Jesven       add all cpu's lock and ipi handler
  */
 
 #ifndef __RT_THREAD_H__
@@ -184,10 +183,6 @@ rt_uint16_t rt_critical_level(void);
 
 #ifdef RT_USING_HOOK
 void rt_scheduler_sethook(void (*hook)(rt_thread_t from, rt_thread_t to));
-#endif
-
-#ifdef RT_USING_SMP
-void rt_scheduler_ipi_handler(int vector, void *param);
 #endif
 
 /**@}*/
@@ -392,27 +387,6 @@ rt_err_t rt_mq_recv(rt_mq_t    mq,
 rt_err_t rt_mq_control(rt_mq_t mq, int cmd, void *arg);
 #endif
 
-/*
- * spinlock
- */
-#ifdef RT_USING_SMP
-struct rt_spinlock;
-
-void rt_spin_lock_init(struct rt_spinlock *lock);
-void rt_spin_lock(struct rt_spinlock *lock);
-void rt_spin_unlock(struct rt_spinlock *lock);
-rt_base_t rt_spin_lock_irqsave(struct rt_spinlock *lock);
-void rt_spin_unlock_irqrestore(struct rt_spinlock *lock, rt_base_t level);
-
-#else
-#define rt_spin_lock_init(lock)                 /* nothing */
-#define rt_spin_lock(lock)                      rt_enter_critical()
-#define rt_spin_unlock(lock)                    rt_exit_critical()
-#define rt_spin_lock_irqsave(lock)              rt_hw_interrupt_disable()
-#define rt_spin_unlock_irqrestore(lock, level)  rt_hw_interrupt_enable(level)
-
-#endif
-
 /**@}*/
 
 #ifdef RT_USING_DEVICE
@@ -469,20 +443,6 @@ rt_err_t  rt_device_control(rt_device_t dev, int cmd, void *arg);
  */
 void rt_interrupt_enter(void);
 void rt_interrupt_leave(void);
-
-#ifdef RT_USING_SMP
-
-/*
- * smp cpus lock service
- */
-
-rt_base_t rt_cpus_lock(void);
-void rt_cpus_unlock(rt_base_t level);
-
-struct rt_cpu *rt_cpu_self(void);
-struct rt_cpu *rt_cpu_index(int index);
-
-#endif
 
 /*
  * the number of nested interrupts.

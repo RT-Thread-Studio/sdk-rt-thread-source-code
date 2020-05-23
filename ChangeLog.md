@@ -1,16 +1,142 @@
-# RT-Thread v4.0.1 Change Log
+# RT-Thread v3.1.4 Change Log
+
+Change log since v3.1.3
+
+## Kernel
+
+* Split the component automatic initialization to component automatic initialization and main funciton;
+* Fix RT_IDLE_HOOK spelling issue;
+* Add thread waiting for message queue when queue is full;
+* Fix the issue of delete mq in `rt_mq_create` in some abnormal case;
+* Remove the C++ keywords in the`rt_console_set_device`function;
+* Remove the `suspend_thread_count` member from memory_pool structure;
+* Fix the issue when block = NULL in rt_mp_free;
+* Fix the issue of critical protection when `rt_thread_delete` change the status of thread;
+
+## Components
+
+* Fix the issue of mPool size in C++ / Queue;
+* Add the error status return in C++ / Thread task join/wait function;
+* Fix compilation warning in DFS/ELM FatFS;
+* Add support for Linux NFS Server in DFS/NFS;
+* Fix mkfs issue in DFS/UFFS;
+* Add ftruncate, flock, getuid, umask APIs;
+* Fix the display issue of fd with offset in list_fd command;
+* Add `dfs_mount_device` API to mount a file system on a device which is already in mount_table;
+* Rename the C++ keywords in DFS/rename function;
+* Connnect dfs/poll, select with RT_USING_POSIX in Kconfig;
+* Optimize the part of the code of finsh to make it more simple;
+* When RT_USING_DEVICE is not used, finsh can use the `rt_hw_console_getchar()` function which is simple to implement and not using the device framework;
+* Increase the line length of the finsh shell to more than 256 characters;
+* utest can support clang compiler and C++ compiler;
+* Fix possible cross-boundary issues in ulog;
+* Fix compilation warning in `ulog/ulog_console_backend_output`;
+* Add support for file sending and receiving feature in YModem;
+* CRC16 can be calculated without the lookup talbe to reduce code size in YModem component;
+* Fix the issue that stack may be wrongly released during pthread/destory;
+* Fix the possible memory leaks issue which caused by pthread_create abnormal case;
+* The timer-related APIs under different compiler of libc are moved to the `libc\compilers\common` folder;
+* Remove redundant definitions in `dlib/sys/unistd.h` (which will cause compilation warnings);
+* Add `sys/errno.h` and`sys/signal.h` header files under dlib;
+* Freemodbus is no longer in the kernel, and split it as a standalone softwre package;
+* AT socket updated to v1.3.0:
+  - Add multi-client and multi-device function support in AT Socket, and improve the dirty data handling when AT device hardware module reboot;
+  - Support netdev network card feature, which can manage and control AT device network connection through the network card interface;
+* Improve AT Server function support in AT components, add AT Server data sending and receiving interfaces `at_server_send ()` and `at_server_recv ()`;
+* Fix the issue of `closesocket()` in SAL component when socket closing failure after `shutdown()`;
+* Improve `sal_bind ()` network card binding related function in SAL component;
+* Add IPV6 related options configuration and function support to SAL and netdev;
+* Improve ping command error handling and log display in the netdev;
+* Add hostname configuration options and functions in lwIP component;
+* Fix the assertion issue of `sys_arch_mbox_fetch()` in lwIP which may occur when a socket is closed;
+* Add network card uninstallation function and support for dhcpd service stop function to the lwip component;
+* Fix lwIP component compilation failure caused by closing FinSH component;
+* Fix the issue that the socket may not be closed during the DHCPD task in the lwIP DHCP server;
+* Add `dhcpd_stop()` interface;
+* Change log in device driver framework:
+  * Refactor audio driver framework;
+  * Fix the issue that the receiving length is 0 in CAN and the issue of returning wrong values;
+  * Add hardware encryption and decryption driver framework;
+  * Fix the flag handling issue of `rt_i2c_master_send/rt_i2c_master_recv`;
+  * Add input capture and pulse encoding driver framework;
+  * Fix the issue that partition lock is deleted when `rt_mmcsd_blk_remove`;
+  * Fix the issue that the enumerated capacity of the large-capacity card in MMC/SD exceeded the data range;
+  * When the SDIO device is initialized, the function's manufacturer and product can also use the information in CIS;
+  * Improve the interrupt mode handling in the sensor framework, and fix the issue that the memory is not released when registering the sensor;
+  * More information are provided in command line of sensor framework;
+  * Add the checking for Rx buffer size in the serial port framework, and provide a notification when RX buffer full;
+  * Remove the old Nor SPI Flash driver in SPI framework, and replace with SFUD component;
+  * Fix some judgements issue in the return value of SFUD;
+  * Fix the definition warning of `SFUD_FLASH_DEVICE_TABLE` in SFUD;
+  * Add support for W25Q64DW devices in SFUD;
+  * Fix FiFo creation failure handling when creating a pipe;
+  * Fix the issue of releasing RBB in advance in `rt_rbb_destroy()` function;
+  * Rename the new keyword using of C++ in `rt_rbb_blk_alloc` function;
+  * Unify the `struct rt_delayed_work` in workqueue to `struct rt_work`;
+  * Add touch driver framework;
+  * Add USB Audio class;
+  * Fix RNDIS plug-in/out issue in USB device stack;
+  * Add the interface callback function in USB device stack;
+  * Improve wlan framework, including command line functions, handling of AP name, password length, support for netdev, better configurability, etc.
+
+## BSP and CPU porting
+
+* Add Clang compiler support in ARM-related CPU porting;
+* Fix SCB_AIRCR definition issue in ARM Cortex-M0;
+* Unify the .data .bss section to 8bytes alignment in GCC tool chain;
+* Rerange NXP i.MXRT BSP and add related BSP documents;
+* Add i.MXRT1052 ATK Commander, Fire Pro BSP and i.MXRT1064 EVK BSP to the new i.MXRT BSP;
+* Fix I2C operation (master_xfer) in LPC54114-lite BSP;
+* Add Audio driver in LPC54114-lite BSP;
+* Refactor qemu-vexpress-a9's Audio driver and fix the issue of OS Tick accuracy;
+* Remove old STM32 BSP: stm32f4xx-HAL, stm32f10x, stm32f10x-HAL, stm32f429-apollo, stm32f429-disco, stm32h743-nucleo;
+* Fix the issue of `rt_hw_sci_init()` for opening the global interrupt in tms320f28379d BSP;
+* Add support of soft I2C and hardware encryption module to WinnerMicro W60x BSP（AES/DES/3DES/RC/SHA1/MD3/CRC);
+* Add oneshot WiFi configuration support in WinnerMicro W60x BSP;
+* Add more STM32 BSP based on new STM32 BSP framework:
+  * stm32f072-st-nucleo
+  * stm32f103-gizwits-gokitv21
+  * stm32f103-yf-ufun
+  * stm32f412-st-nucleo
+  * stm32f427-robomaster-a
+  * stm32f429-st-disco
+  * stm32f769-st-disco
+  * stm32g431-st-nucleo
+  * stm32h743-st-nucleo
+  * stm32h750-armfly-h7-tool
+  * stm32l4r5-st-nucleo
+  * stm32l452-st-nucleo
+* For the new STM32 BSP framework:
+  * Add DMAMUX support to stm32l4+;
+  * Update F7 HAL library SConscript;
+  * Open the SWD port configuration on cubemx in stm32f103-atk-warshipv3 BSP;
+  * Add support for SD card in stm32f427-robomaster-a BSP;
+  * Add USBFS driver to stm32f412-nucleo BSP;
+  * Remove use of device user data on uart driver;
+  * Add QSPI FLASH support in stm32h743-atk-apollo BSP;
+  * Optimized Ethernet driver;
+  * Add hardware encryption and decryption driver;
+  * Add MIPI LCD driver;
+  * Add pulse encoding driver;
+  * Optimize hardware timer driver;
+  * Add support for UART 7/8 in serial driver;
+  * Optimize WDT driver; 
+
+## Tools
+
+* Optimize scons script for eclipse in order to generate eclipse project better;
+* Improve rtconfig.h generator, PATH type configuration can be generated correctly;
+* Fix gcc path detection issue when using the default cross toolchain of the Linux distribution;
+
+# RT-Thread v3.1.3 Change Log
 
 ## Kernel
 
 * Fix the `rt_tick_from_millisecond()` compilation warning issue;
-* Remove unnecessary code that disable interrupt several times during startup initialization;
 * Fix the issue that the system object is not detached when handling defunct threads. 
 * Add the value checking of semaphore (the maximum value of semaphore is up to 65535)
-* Fix the 64-bit issue in kservice.c
 * Add the checking and assertion of re-initialization of object.
 * In the rt_enter_critical/rt_exit_critical function, add the checking of whether scheduler is startup or not.
-* Fix the signal issue under SMP and the issue of signal information list in signal.
-* Add 64-bit processor support in slab memory allocation.
 * Fix the definition issue of `ENOTSUP` in libc_errno.h.
 * Simplify the rtdbg.h file and use ulog to make log/debug system easier to use.
 * Add the configuration of RT_USING_ARCH_DATA_TYPE, `rt_int8_t/.../rt_uint32_t` and other basic data types can be defined by BSP itself. (It is recommended to put them into the rtconfig_project.h file, so that this file can be automatically included in rtconfig.h when menuconfig generates it.)
@@ -49,16 +175,11 @@
 
 ## BSP
 
-* Add ES32 chip BSP from Shanghai Eastsoft Microelectronics Co., Ltd. (EastSoft provides maintenance and support);
-* Add GD32E230K-start, with ARM Cortex-M23 core BSP (xuzhuoyi)
 * Add IMXRT1021-EVK BSP (NXP provides maintenance and support);
 * Add the ETH hardware checksum option in IMXRT1052 ETH driver;
-* Add more peripheral drivers, GPIO, LCD, SPI, camera, etc. in Kendryte K210 BSP.
 * Cleanup the LPC 4088 BSP to use main function entry and support menuconfig;
-* Add LPC1114 BSP with UART driver (SASANO Takayoshi, Japan);
 * The double Frame Buffer mechanism and touch screen driver are added in Godson 1C BSP, then it can better to support Persimmon UI (sundm75).
 * Add watchdog driver in Godson 1C BSP(sundm75);
-* Add MM32 chip BSP from Shanghai MindMotion Microelectronics Co., Ltd. (MindMotion provides maintenance and support);
 * Fix the SysTick interrupt handling issue in nRF52832 and add menuconfig configuration file.
 * Add QSPI and SPI flash driver to Nuvoton M487 BSP (bluebear 233)
 * Change the CPU porting to libcpu/arm/cortex-a folder in QEMU-VExpress A9/IMX6UL BSP;
@@ -81,12 +202,9 @@
   * stm32l475-st-discovery
   * stm32l476-st-nucleo (Vincent-VG)
   * stm32l496-ali-developer
-
-* Add the ARC support for Synopsys Design Ware ARC EM Starter Kit (Synopsys provides maintenance and support);
 * The SCI driver is added to the TMS320F28379D BSP (xuzuoyi).
 * Add W60X Wi-Fi SoC chip BSP from Winner Microelectronics Co.,Ltd. (Winner Micro and RealThread provide maintenance and support);
 * Fix the UART2 IO configuration issue in X1000 UART driver (Zhou Yanjie);
-* Add SConscript file for each CPU porting.
 * Cleanup the libcpu/arm/cortex-a code;
 * The _rt_hw_context_switch_interrupt/_rt_hw_context_switch is separated in TI DSP TMS320F28379D BSP (xuzuoyi);
 
@@ -101,13 +219,11 @@
   * Fix VC++ warning issue
   * Fix Unicode error issue
 
-# RT-Thread v4.0.0 Change Log
+# RT-Thread v3.1.2 Change Log
 
 ## Kernel
 
-* Add SMP support;
-* Add support for 64-bit processors;
-* When the thread is running on CPU, the state of this thread is changed to RUNNING stat instead of READY state in previous version;
+* nothing
 
 ## Components
 
@@ -116,13 +232,10 @@
 * Fix stdio fd issue when POSIX api is used; (gbcwbz)
 * Fix the `fd_is_open()` issue: when the sub-path is the same in different mounted filesystem. 
 * Change the critical lock/unlock to dfs_lock/unlock in `getcwd()` function of DFS (the critical lock/unlock is different in SMP environment);
-* Rewrite `list_thread/list_*` implementation of finsh cmd to avoid multi-core competition case;
 * Fix the `aio_result` issue, which is returned by `aio_read_work` in AIO; (fullhan)
 * Fix the mmap issue when the addr parameter is NULL; (fullhan)
 * Modify the `_sys_istty` function in armlibc to correctly handle STDIN/STDOUT/STDERR; (gbcwbz)
 * Modify the `_write_r` function in newlib to correctly handle stdout.
-* Add lightweight processes (lwP) and corresponding system calls;
-  * the lwP user application environment will be added later;
 * Fix the at_socket issue when socket is a null pointer; (thomas onegd)
 * Fix the select event issue in `at_recvfrom()` function in at_socket;
 * Divide SAL into `sal_socket_ops/sal_proto_ops` and sal_proto_ops is implemented with gethostbyname/getaddrinfo ops etc.
@@ -148,12 +261,9 @@
 # BSP
 
 * Change the name parameter to `cosnt char *` in `rt_hw_interrupt_install` function; (liruncong)
-* Rewrite the RISC-V porting layer to make as a common and standalone porting layer for RISC-V IMAC 32/64;
 * Fix `$` warning issue in Kconfig files of each BSP;
 * Add the LPC54114-lite BSP, including GPIO, I2C, SDCard, SPI, SPI Flash, UART driver;
 * Add Nuvoton-M487 BSP, including UART, EMAC driver; (Bluebear 233)
-* Add Kendryte K210 BSP with RISC-V64 dual-core SMP BSP, including UART driver, also verified with micropython;
-* Add RV32M1 VEGA BSP, including GPIO, I2C, SDCard, UART and other drivers;
 * Fix the CAN driver issue in STM32F4XX-HAL BSP; (xeonxu)
 * Fix UART DMA settings issue in STM32F10x/STM32F40x BSP; (zhouchuanfu)
 * Fix the HEAP_BEGIN definition issue in STM32H743-Nucleo BSP; (nongxiaoming)
@@ -163,7 +273,7 @@
 * Add PWM, RTC and watchdog drivers to stm32f10x-HAL BSP; (XXXXzzzz000)
 * Fix the watchdog driver issue in stm32f4xx-HAL BSP; (XXXXzzzz000)
 * Use lwIP version 2.x in stm32f40x/stm32f107 BSP.
-* Fix the link issue when enable cmBacktrace package in stm32f4xx-HAL BSP; (xeonxu)
+* Fix the link issue when enable CmBacktrace package in stm32f4xx-HAL BSP; (xeonxu)
 * Support Audio and microphones features in stm32f429-apollo BSP;
 * Enable dlmodule support in x86 BSP; (SASANO Takayoshi)
 * Addd uTest section in the link script of qemu-vexpress-a9/stm32f429-atk-apollo BSP for automatic testing;
@@ -193,7 +303,6 @@
 * Add SWM320 BSP of Synwit.cn, including GPIO, HW Timer, I2C, Watchdog, PWM, RTC, SPI, UART, etc.; (provided and maintained by Synwit)
 * Add TI TMS320F28379D BSP, the first DSP chip supported on RT-Thread; (xuzhuoyi)
 * Fix USB driver issue in X1000; (Zhou YanJie)
-* Add BSP for Synopsys Design Ware ARC EM Starter Kit, bsp/synopsys/emsk_em9d, EM9D core, including GPIO, UART and other drivers; (provided and maintained by Synopsys)
 
 # Tool
 
@@ -674,7 +783,7 @@ RT-Thread v2.0.1是2.0这个系列的bug修正版，而v2.1.0 alpha则是当前�
 *  修正USB host代码的编译错误；
 *  修正sensor框架回调函数的问题；
 *  修正pin设备注册时的设备名称问题；
- 
+
 而v2.1.0 alpha这个技术预览版则沿着最初设定的roadmap技术路线进行，这其中主要包括：
 
 *  lwip更深度的集成：把它集成到RT-Thread的文件系统接口中，这样Linux/Unix下的一些socket网络应用能够更顺利的移植到RT-Thread上，也为以后可以应用到更多地方的select接口铺路。
@@ -687,7 +796,7 @@ RT-Thread v2.0.1是2.0这个系列的bug修正版，而v2.1.0 alpha则是当前�
 以下是自v2.0.0 RC版本以来的详细更改记录。后续我还会给出v2.0.0版本自v1.2.x版本的主要不同、看点，以及给出下一个版本的roadmap规划。
 
 ## 内核
- 
+
 *  console以RT_DEVICE_FLAG_STREAM参数打开字符设备；
 *  在rt_memheap_free中加入更多的断言检查；
 
@@ -707,7 +816,7 @@ RT-Thread v2.0.1是2.0这个系列的bug修正版，而v2.1.0 alpha则是当前�
 *  添加VBUS组件用于Linux与RT-Thread系统之间，RT-Thread与RT-Thread系统之间通信（睿赛德服务公司捐赠）；
 *  增加lwIP/NAT组件，可以做多个网口间的地址转换（Hicard）；
 *  增加lwIP/DHCP服务端，用于向客户端分配IP地址（睿赛德服务公司提供）；
- 
+
 ## BSP
 
 *  修正LPC4357串口驱动初始化时过早打开中断的问题（nongxiaoming）；
@@ -818,7 +927,7 @@ v2.0.0版本的开发相对活跃些，开源社区提供了强有力的支持�
 * 启动timer前，对timer进行强制移除；
 * 在执行soft timer超时函数时，打开调度器锁；
 * 新增块设备的自动刷新参数，RT_DEVICE_CTRL_BLK_AUTOREFRESH；
- 
+
 ## 工具
 
 * 修正scons命令编译时，选择keil mdk (armcc)编译器时，命令行太长编译失败的问题；
@@ -871,7 +980,7 @@ v2.0.0版本的开发相对活跃些，开源社区提供了强有力的支持�
 # RT-Thread 2.0.0 Alpha更改说明
 
 发布时间:2014/4/8
-	
+​	
 RT-Thread 2.0.0分支的第一个技术预览版本，仅用于展示2.0.0发展分支的演化动向(按照roadmap，2.0.0这个分支会有一部分RT-Thread和Linux互补性的技术，为Linux增加更好的实时性，为RT-Thread增加更多的功能性，这份技术预览版正是朝着这个目标而努力)，欢迎反馈建议和问题。
 
 ## 组件
@@ -907,7 +1016,7 @@ insmod rtvmm.ko
 # RT-Thread 1.2.1更改说明
 
 发布时间: 2014/4/8
-	
+​	
 在原有的1.2.0版本的bug修正版本，也是1.2.0系列的第一个修正版本，原则上不添加任何的新功能，我们尽量会按照每个季度一个修订版本的方式推进。大家在使用的过程中有什么问题还请反馈给我们，这些问题很可能会在下个版本中修正！
 
 以下是更改记录：
@@ -953,7 +1062,7 @@ insmod rtvmm.ko
 发布时间: 2014/1/6 
 
 实现roadmap中提到的大部分内容
-	
+​	
 1，文档方面已完成《RT-Thread编程手册》，同时还有论坛上jiezhi童鞋的《一起来学RT-Thread系列连载教程》
 2，BSP分支方面新增cortext-A8(beaglebone)，cortext-R4(rm48x50)，UNITY-2(SEP6200),lpc408x的移植
 3，组件方面：
@@ -1040,7 +1149,7 @@ insmod rtvmm.ko
 # RT-Thread 1.2.0RC更改说明
 
 发布时间: 2013/10/10/ 10:19
-	 
+​	 
 主要说明: 该版本新增ARM Cortex-A8的支持(BeagleBone)，新增UNITY-2内核的支持(SEP6200)，新增Ymodem协议。
 
 变更履历
@@ -1135,7 +1244,7 @@ insmod rtvmm.ko
 版本: RT-Thread 1.2.0 Beta 版本
 
 发布时间: 2013/6/30
-		
+​		
 进过开发人员三个月的努力，RT-Thread 1.2.0 Beta 版本如期发布。
 该版本默认采用lwIP 1.4.1协议栈，USB device stack也进一步完善。加入 log_trace 子系统，加入组件初始化升级版本，加入 ARM Cortex-R 的移植。
 
@@ -1182,7 +1291,7 @@ insmod rtvmm.ko
 版本: RT-Thread 1.2.0 Alpha版本
 
 发布时间: 2013/4/10
-	
+​	
 遵循2013年RT-Thread roadmap，RT-Thread 1.2.0 Alpha版本发布，Alpha意味着此版本为技术预览版，仅用于展示RT-Thread 1.2.0未来的发展方向，并不适合于开发正式产品。RT-Thread 1.2.0版本是1.1.x系列的下一个分支，这个分支主要体现的是RT-Thread 1.x系列的文档情况。当然也有一些功能、代码方面的增强。
 
 伴随着新版本的到来，RT-Thread有几个重大的转变：

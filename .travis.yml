@@ -30,7 +30,6 @@ env:
   - RTT_BSP='efm32' RTT_TOOL_CHAIN='sourcery-arm'
 #  - RTT_BSP='es32f0334' RTT_TOOL_CHAIN='sourcery-arm' # not support gcc
 #  - RTT_BSP='es32f0654' RTT_TOOL_CHAIN='sourcery-arm' # not support gcc
-  - RTT_BSP='gd32e230k-start' RTT_TOOL_CHAIN='sourcery-arm'
   - RTT_BSP='gd32303e-eval' RTT_TOOL_CHAIN='sourcery-arm'
   - RTT_BSP='gd32450z-eval' RTT_TOOL_CHAIN='sourcery-arm'
   - RTT_BSP='gkipc' RTT_TOOL_CHAIN='sourcery-arm'
@@ -46,7 +45,6 @@ env:
   - RTT_BSP='lpc176x' RTT_TOOL_CHAIN='sourcery-arm'
   - RTT_BSP='lpc178x' RTT_TOOL_CHAIN='sourcery-arm'
   - RTT_BSP='lpc408x' RTT_TOOL_CHAIN='sourcery-arm'
-  - RTT_BSP='lpc1114' RTT_TOOL_CHAIN='sourcery-arm'
 #  - RTT_BSP='lpc824' RTT_TOOL_CHAIN='sourcery-arm' # not support gcc
   - RTT_BSP='lpc2148' RTT_TOOL_CHAIN='sourcery-arm'
   - RTT_BSP='lpc2478' RTT_TOOL_CHAIN='sourcery-arm'

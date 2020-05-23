@@ -8,7 +8,6 @@
  * 2006-02-24     Bernard      first version
  * 2006-05-03     Bernard      add IRQ_DEBUG
  * 2016-08-09     ArdaFu       add interrupt enter and leave hook.
- * 2018-11-22     Jesven       rt_interrupt_get_nest function add disable irq
  */
 
 #include <rthw.h>
@@ -49,11 +48,7 @@ void rt_interrupt_leave_sethook(void (*hook)(void))
 
 /**@{*/
 
-#ifdef RT_USING_SMP
-#define rt_interrupt_nest rt_cpu_self()->irq_nest
-#else
-volatile rt_uint8_t rt_interrupt_nest = 0;
-#endif
+volatile rt_uint8_t rt_interrupt_nest;
 
 /**
  * This function will be invoked by BSP, when enter interrupt service routine

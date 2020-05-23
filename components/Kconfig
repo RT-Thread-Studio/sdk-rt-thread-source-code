@@ -35,6 +35,4 @@ source "$RTT_DIR/components/vbus/Kconfig"
 
 source "$RTT_DIR/components/utilities/Kconfig"
 
-source "$RTT_DIR/components/lwp/Kconfig"
-
 endmenu

@@ -12,17 +12,12 @@
  * 2010-05-20     Bernard      fix the tick exceeds the maximum limits
  * 2010-07-13     Bernard      fix rt_tick_from_millisecond issue found by kuronca
  * 2011-06-26     Bernard      add rt_tick_set function.
- * 2018-11-22     Jesven       add per cpu tick
  */
 
 #include <rthw.h>
 #include <rtthread.h>
 
-#ifdef RT_USING_SMP
-#define rt_tick rt_cpu_index(0)->tick
-#else
 static rt_tick_t rt_tick = 0;
-#endif
 
 /**
  * This function will initialize system tick and set it to zero.
@@ -74,11 +69,7 @@ void rt_tick_increase(void)
     struct rt_thread *thread;
 
     /* increase the global tick */
-#ifdef RT_USING_SMP
-    rt_cpu_self()->tick ++;
-#else
     ++ rt_tick;
-#endif
 
     /* check time slice */
     thread = rt_thread_self();
@@ -88,8 +79,6 @@ void rt_tick_increase(void)
     {
         /* change to initialized tick */
         thread->remaining_tick = thread->init_tick;
-
-        thread->stat |= RT_THREAD_STAT_YIELD;
 
         /* yield */
         rt_thread_yield();

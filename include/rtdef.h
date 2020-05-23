@@ -24,13 +24,9 @@
  * 2018-05-31     Bernard      change version number to v3.1.0
  * 2018-09-04     Bernard      change version number to v3.1.1
  * 2018-09-14     Bernard      apply Apache License v2.0 to RT-Thread Kernel
- * 2018-10-13     Bernard      change version number to v4.0.0
- * 2018-10-02     Bernard      add 64bit arch support
- * 2018-11-22     Jesven       add smp member to struct rt_thread
- *                             add struct rt_cpu
- *                             add smp relevant macros
- * 2019-01-27     Bernard      change version number to v4.0.1
- * 2019-05-17     Bernard      change version number to v4.0.2
+ * 2018-12-28     armink       change version number to v3.1.2
+ * 2019-03-14     armink       change version number to v3.1.3
+ * 2019-06-12     armink       change version number to v3.1.4
  */
 
 #ifndef __RT_DEF_H__
@@ -47,12 +43,12 @@ extern "C" {
  * @addtogroup BasicDef
  */
 
-/**@{*/
+/*@{*/
 
 /* RT-Thread version information */
-#define RT_VERSION                      4L              /**< major version number */
-#define RT_SUBVERSION                   0L              /**< minor version number */
-#define RT_REVISION                     2L              /**< revise version number */
+#define RT_VERSION                      3L              /**< major version number */
+#define RT_SUBVERSION                   1L              /**< minor version number */
+#define RT_REVISION                     4L              /**< revise version number */
 
 /* RT-Thread version */
 #define RTTHREAD_VERSION                ((RT_VERSION * 10000) + \
@@ -491,10 +487,7 @@ typedef siginfo_t rt_siginfo_t;
 #define RT_THREAD_RUNNING               0x03                /**< Running status */
 #define RT_THREAD_BLOCK                 RT_THREAD_SUSPEND   /**< Blocked status */
 #define RT_THREAD_CLOSE                 0x04                /**< Closed status */
-#define RT_THREAD_STAT_MASK             0x07
-
-#define RT_THREAD_STAT_YIELD            0x08                /**< indicate whether remaining_tick has been reloaded since last schedule */
-#define RT_THREAD_STAT_YIELD_MASK       RT_THREAD_STAT_YIELD
+#define RT_THREAD_STAT_MASK             0x0f
 
 #define RT_THREAD_STAT_SIGNAL           0x10                /**< task hold signals */
 #define RT_THREAD_STAT_SIGNAL_READY     (RT_THREAD_STAT_SIGNAL | RT_THREAD_READY)
@@ -509,41 +502,6 @@ typedef siginfo_t rt_siginfo_t;
 #define RT_THREAD_CTRL_CLOSE            0x01                /**< Close thread. */
 #define RT_THREAD_CTRL_CHANGE_PRIORITY  0x02                /**< Change thread priority. */
 #define RT_THREAD_CTRL_INFO             0x03                /**< Get thread information. */
-#define RT_THREAD_CTRL_BIND_CPU         0x04                /**< Set thread bind cpu. */
-
-#ifdef RT_USING_SMP
-
-#define RT_CPU_DETACHED                 RT_CPUS_NR          /**< The thread not running on cpu. */
-#define RT_CPU_MASK                     ((1 << RT_CPUS_NR) - 1) /**< All CPUs mask bit. */
-
-#ifndef RT_SCHEDULE_IPI
-#define RT_SCHEDULE_IPI                 0
-#endif
-
-/**
- * CPUs definitions
- *
- */
-struct rt_cpu
-{
-    struct rt_thread *current_thread;
-
-    rt_uint16_t irq_nest;
-    rt_uint8_t  irq_switch_flag;
-
-    rt_uint8_t current_priority;
-    rt_list_t priority_table[RT_THREAD_PRIORITY_MAX];
-#if RT_THREAD_PRIORITY_MAX > 32
-    rt_uint32_t priority_group;
-    rt_uint8_t ready_table[32];
-#else
-    rt_uint32_t priority_group;
-#endif
-
-    rt_tick_t tick;
-};
-
-#endif
 
 /**
  * Thread structure
@@ -573,15 +531,6 @@ struct rt_thread
     rt_err_t    error;                                  /**< error code */
 
     rt_uint8_t  stat;                                   /**< thread status */
-
-#ifdef RT_USING_SMP
-    rt_uint8_t  bind_cpu;                               /**< thread is bind to cpu */
-    rt_uint8_t  oncpu;                                  /**< process on cpu` */
-
-    rt_uint16_t scheduler_lock_nest;                    /**< scheduler lock count */
-    rt_uint16_t cpus_lock_nest;                         /**< cpus lock count */
-    rt_uint16_t critical_lock_nest;                     /**< critical lock count */
-#endif /*RT_USING_SMP*/
 
     /* priority */
     rt_uint8_t  current_priority;                       /**< current priority */

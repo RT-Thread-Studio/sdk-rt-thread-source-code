@@ -13,8 +13,6 @@
  * 2016-08-09     ArdaFu       add method to get the handler of the idle thread.
  * 2018-02-07     Bernard      lock scheduler to protect tid->cleanup.
  * 2018-07-14     armink       add idle hook list
- * 2018-11-22     Jesven       add per cpu idle task
- *                             combine the code of primary and secondary cpu
  */
 
 #include <rthw.h>
@@ -38,17 +36,11 @@
 #endif
 #endif
 
-#ifdef RT_USING_SMP
-#define _CPUS_NR                RT_CPUS_NR
-#else
-#define _CPUS_NR                1
-#endif
-
 extern rt_list_t rt_thread_defunct;
 
-static struct rt_thread idle[_CPUS_NR];
+static struct rt_thread idle;
 ALIGN(RT_ALIGN_SIZE)
-static rt_uint8_t rt_thread_stack[_CPUS_NR][IDLE_THREAD_STACK_SIZE];
+static rt_uint8_t rt_thread_stack[IDLE_THREAD_STACK_SIZE];
 
 #ifdef RT_USING_IDLE_HOOK
 #ifndef RT_IDLE_HOOK_LIST_SIZE
@@ -231,18 +223,9 @@ void rt_thread_idle_excute(void)
 extern void rt_system_power_manager(void);
 static void rt_thread_idle_entry(void *parameter)
 {
-#ifdef RT_USING_SMP
-    if (rt_hw_cpu_id() != 0)
-    {
-        while (1)
-        {
-            rt_hw_secondary_cpu_idle_exec();
-        }
-    }
-#endif
-
     while (1)
     {
+
 #ifdef RT_USING_IDLE_HOOK
         rt_size_t i;
 
@@ -271,26 +254,18 @@ static void rt_thread_idle_entry(void *parameter)
  */
 void rt_thread_idle_init(void)
 {
-    rt_ubase_t i;
-    char tidle_name[RT_NAME_MAX];
+    /* initialize thread */
+    rt_thread_init(&idle,
+                   "tidle",
+                   rt_thread_idle_entry,
+                   RT_NULL,
+                   &rt_thread_stack[0],
+                   sizeof(rt_thread_stack),
+                   RT_THREAD_PRIORITY_MAX - 1,
+                   32);
 
-    for (i = 0; i < _CPUS_NR; i++)
-    {
-        rt_sprintf(tidle_name, "tidle%d", i);
-        rt_thread_init(&idle[i],
-                tidle_name,
-                rt_thread_idle_entry,
-                RT_NULL,
-                &rt_thread_stack[i][0],
-                sizeof(rt_thread_stack[i]),
-                RT_THREAD_PRIORITY_MAX - 1,
-                32);
-#ifdef RT_USING_SMP
-        rt_thread_control(&idle[i], RT_THREAD_CTRL_BIND_CPU, (void*)i);
-#endif
-        /* startup */
-        rt_thread_startup(&idle[i]);
-    }
+    /* startup */
+    rt_thread_startup(&idle);
 }
 
 /**
@@ -301,11 +276,5 @@ void rt_thread_idle_init(void)
  */
 rt_thread_t rt_thread_idle_gethandler(void)
 {
-#ifdef RT_USING_SMP
-    register int id = rt_hw_cpu_id();
-#else
-    register int id = 0;
-#endif
-
-    return (rt_thread_t)(&idle[id]);
+    return (rt_thread_t)(&idle);
 }
