@@ -69,6 +69,7 @@ static sfud_err page256_or_1_byte_write(const sfud_flash *flash, uint32_t addr, 
 static sfud_err aai_write(const sfud_flash *flash, uint32_t addr, size_t size, const uint8_t *data);
 static sfud_err wait_busy(const sfud_flash *flash);
 static sfud_err reset(const sfud_flash *flash);
+static sfud_err unlock_global(sfud_flash *flash);
 static sfud_err read_jedec_id(sfud_flash *flash);
 static sfud_err set_write_enabled(const sfud_flash *flash, bool enabled);
 static sfud_err set_4_byte_address_mode(sfud_flash *flash, bool enabled);
@@ -378,6 +379,14 @@ static sfud_err software_init(const sfud_flash *flash) {
     sfud_err result = SFUD_SUCCESS;
 
     SFUD_ASSERT(flash);
+
+    /* unlock global flash device */
+    if (flash->chip.write_mode & SFUD_WM_PROTECT) {
+        result = unlock_global((sfud_flash *)flash);
+        if (result != SFUD_SUCCESS) {
+            return result;
+        }
+    }
 
     return result;
 }
@@ -840,6 +849,38 @@ static sfud_err reset(const sfud_flash *flash) {
         SFUD_DEBUG("Flash device reset success.");
     } else {
         SFUD_INFO("Error: Flash device reset failed.");
+    }
+
+    return result;
+}
+
+static sfud_err unlock_global(sfud_flash *flash) {
+    sfud_err result = SFUD_SUCCESS;
+    const sfud_spi *spi = &flash->spi;
+    uint8_t cmd_data[2];
+
+    SFUD_ASSERT(flash);
+
+    cmd_data[0] = SFUD_CMD_WRITE_ENABLE;
+    result = spi->wr(spi, cmd_data, 1, NULL, 0);
+    if (result == SFUD_SUCCESS) {
+        result = wait_busy(flash);
+    } else {
+        SFUD_INFO("Error: Flash device unlock global failed.");
+        return result;
+    }
+
+    cmd_data[1] = SFUD_UNLOCK_GLOBAL;
+    result = spi->wr(spi, &cmd_data[1], 1, NULL, 0);
+
+    if (result == SFUD_SUCCESS) {
+        result = wait_busy(flash);
+    }
+
+    if (result == SFUD_SUCCESS) {
+        SFUD_DEBUG("Flash device unlock global success.");
+    } else {
+        SFUD_INFO("Error: Flash device unlock global failed.");
     }
 
     return result;

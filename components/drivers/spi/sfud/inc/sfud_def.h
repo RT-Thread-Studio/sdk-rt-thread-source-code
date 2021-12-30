@@ -175,6 +175,10 @@ if (!(EXPR))                                                                   \
 #define SFUD_DUMMY_DATA                                0xFF
 #endif
 
+#ifndef SFUD_UNLOCK_GLOBAL
+#define SFUD_UNLOCK_GLOBAL                              0x98
+#endif
+
 /* maximum number of erase type support on JESD216 (V1.0) */
 #define SFUD_SFDP_ERASE_TYPE_MAX_NUM                      4
 
