@@ -104,6 +104,9 @@ static rt_size_t rt_sfud_read(rt_device_t dev, rt_off_t pos, void* buffer, rt_si
     }
 }
 
+#define ERASE_SECOTR_SIZE  4096
+uint8_t ALIGN(4) erase_sector_buffer[ERASE_SECOTR_SIZE] = {0};
+
 static rt_size_t rt_sfud_write(rt_device_t dev, rt_off_t pos, const void* buffer, rt_size_t size) {
     struct spi_flash_device *rtt_dev = (struct spi_flash_device *) (dev->user_data);
     sfud_flash *sfud_dev = (sfud_flash *) (rtt_dev->user_data);
@@ -112,14 +115,78 @@ static rt_size_t rt_sfud_write(rt_device_t dev, rt_off_t pos, const void* buffer
     RT_ASSERT(rtt_dev);
     RT_ASSERT(sfud_dev);
     /* change the block device's logic address to physical address */
-    rt_off_t phy_pos = pos * rtt_dev->geometry.bytes_per_sector;
-    rt_size_t phy_size = size * rtt_dev->geometry.bytes_per_sector;
+    rt_off_t phy_pos;
+    rt_size_t phy_size;
 
+    uint8_t *data = (uint8_t *)buffer;
+    rt_uint32_t sector_offset = 0;
+    rt_uint32_t block_num = 0;
+    rt_uint32_t sectors_per_block = 0;
+    rt_uint32_t sectors_to_write = 0;
+    rt_uint32_t block_size = 0;
+    
+    block_size = rtt_dev->geometry.block_size;
+    //LOG_I("Inf: SPI device block size %d", block_size);
+    
+    if (block_size > 512) {
+        sectors_per_block = block_size / rtt_dev->geometry.bytes_per_sector;
+    } else if (block_size == 512) {
+        sectors_per_block = 1;
+    }
+
+    if (sectors_per_block == 1) {
+        phy_pos = pos * rtt_dev->geometry.bytes_per_sector;
+        phy_size = size * rtt_dev->geometry.bytes_per_sector;
     if (sfud_erase_write(sfud_dev, phy_pos, phy_size, buffer) != SFUD_SUCCESS) {
         return 0;
     } else {
         return size;
     }
+    } else {
+        while (size > 0) {
+            /* Find the memory block for the starting sector */
+            block_num = pos / sectors_per_block;
+
+            /* Find the number of sectors to be updated in this block. */
+            sector_offset = (pos % sectors_per_block);
+            sectors_to_write = (sectors_per_block - sector_offset);
+
+            if (size < sectors_to_write) {
+                sectors_to_write = size;
+            }
+
+            LOG_I("Inf: Offset In Block 0x%X, %d", sector_offset, sectors_to_write);
+            phy_pos = block_num * block_size;
+            phy_size = block_size;
+
+            if (sectors_to_write != sectors_per_block) {
+                /* Need perform a read-modify-write operation of the block. */
+                LOG_I("Inf: Read Address 0x%06X, %d", phy_pos, phy_size);
+                sfud_read(sfud_dev, phy_pos, phy_size, erase_sector_buffer);
+
+                /* Multiply by the sector size */
+                sector_offset *= rtt_dev->geometry.bytes_per_sector;
+                memcpy ((void *)&erase_sector_buffer[sector_offset], (const void *)data, sectors_to_write * rtt_dev->geometry.bytes_per_sector);
+
+                data = erase_sector_buffer;
+            }
+
+            LOG_I("Inf: Write Address 0x%06X, %d", phy_pos, phy_size);
+            if (sfud_erase_write(sfud_dev, phy_pos, phy_size, data) != SFUD_SUCCESS) {
+                return 0;
+            } else {
+                return size;
+            }
+
+            /* Update the number of block still to be written, sector address
+             * and the buffer pointer */
+            size -= sectors_to_write;
+            pos += sectors_to_write;
+            data += (sectors_to_write * rtt_dev->geometry.bytes_per_sector);
+        }
+    }
+
+    return 0;
 }
 
 /**
@@ -362,10 +429,18 @@ rt_spi_flash_device_t rt_sfud_flash_probe_ex(const char *spi_flash_dev_name, con
                 LOG_E("ERROR: SPI flash probe failed by SPI device %s.", spi_dev_name);
                 goto error;
             }
+
             /* when initialize success, then copy SFUD flash device's geometry to RT-Thread SPI flash device */
+            if (sfud_dev->chip.erase_gran <= RT_DFS_ELM_MAX_SECTOR_SIZE) {
             rtt_dev->geometry.sector_count = sfud_dev->chip.capacity / sfud_dev->chip.erase_gran;
             rtt_dev->geometry.bytes_per_sector = sfud_dev->chip.erase_gran;
             rtt_dev->geometry.block_size = sfud_dev->chip.erase_gran;
+            } else
+            {
+                rtt_dev->geometry.sector_count = sfud_dev->chip.capacity / RT_DFS_ELM_MAX_SECTOR_SIZE;
+                rtt_dev->geometry.bytes_per_sector = RT_DFS_ELM_MAX_SECTOR_SIZE;
+                rtt_dev->geometry.block_size = sfud_dev->chip.erase_gran;
+            }
 #ifdef SFUD_USING_QSPI
             /* reconfigure the QSPI bus for medium size */
             if(rtt_dev->rt_spi_device->bus->mode &RT_SPI_BUS_MODE_QSPI) {
