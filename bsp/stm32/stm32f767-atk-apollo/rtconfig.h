@@ -47,7 +47,7 @@
 #define RT_CONSOLEBUF_SIZE 128
 #define RT_CONSOLE_DEVICE_NAME "uart1"
 /* end of Kernel Device Object */
-#define RT_VER_NUM 0x40004
+#define RT_VER_NUM 0x40005
 /* end of RT-Thread Kernel */
 #define ARCH_ARM
 #define RT_USING_CPU_FFS
@@ -170,14 +170,17 @@
 
 /* multimedia packages */
 
+/* LVGL: powerful and easy-to-use embedded GUI library */
 
-/* lvgl: powerful and easy-to-use embedded GUI library */
-
-/* end of lvgl: powerful and easy-to-use embedded GUI library */
+/* end of LVGL: powerful and easy-to-use embedded GUI library */
 
 /* u8g2: a monochrome graphic library */
 
 /* end of u8g2: a monochrome graphic library */
+
+/* PainterEngine: A cross-platform graphics application framework written in C language */
+
+/* end of PainterEngine: A cross-platform graphics application framework written in C language */
 /* end of multimedia packages */
 
 /* tools packages */
@@ -186,9 +189,17 @@
 
 /* system packages */
 
+/* enhanced kernel services */
+
+/* end of enhanced kernel services */
+
 /* acceleration: Assembly language or algorithmic acceleration packages */
 
 /* end of acceleration: Assembly language or algorithmic acceleration packages */
+
+/* CMSIS: ARM Cortex-M Microcontroller Software Interface Standard */
+
+/* end of CMSIS: ARM Cortex-M Microcontroller Software Interface Standard */
 
 /* Micrium: Micrium software products porting for RT-Thread */
 
