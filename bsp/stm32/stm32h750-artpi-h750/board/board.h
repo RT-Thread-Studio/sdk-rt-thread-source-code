@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2021, RT-Thread Development Team
+ * Copyright (c) 2006-2022, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -65,6 +65,12 @@ extern "C" {
  *                 such as     #define BSP_UART1_RX_USING_DMA
  *
  */
+
+#define BSP_UART3_RX_BUFSIZE   256
+#define BSP_UART3_TX_BUFSIZE   256
+#define BSP_UART4_RX_BUFSIZE   256
+#define BSP_UART4_TX_BUFSIZE   256
+
 #define STM32_FLASH_START_ADRESS       ROM_START
 #define STM32_FLASH_SIZE               ROM_SIZE
 #define STM32_FLASH_END_ADDRESS        ROM_END
@@ -77,7 +83,7 @@ extern "C" {
 #define STM32_SRAM1_START              RAM_START
 #define STM32_SRAM1_END                RAM_END
 
-#if defined(__CC_ARM) || defined(__CLANG_ARM)
+#if defined(__ARMCC_VERSION)
 extern int Image$$RW_IRAM1$$ZI$$Limit;
 #define HEAP_BEGIN      (&Image$$RW_IRAM1$$ZI$$Limit)
 #elif __ICCARM__
