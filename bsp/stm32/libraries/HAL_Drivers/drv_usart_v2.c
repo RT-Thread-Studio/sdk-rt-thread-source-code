@@ -123,11 +123,6 @@ static rt_err_t stm32_configure(struct rt_serial_device *serial, struct serial_c
     uart->handle.Init.Mode         = UART_MODE_TX_RX;
     uart->handle.Init.OverSampling = UART_OVERSAMPLING_16;
 
-    if(uart->handle.Instance == USART3)
-    {
-        uart->handle.Init.HwFlowCtl    = UART_HWCONTROL_RTS_CTS;
-    }
-
     switch (cfg->data_bits)
     {
     case DATA_BITS_8:
@@ -959,6 +954,7 @@ static void stm32_dma_config(struct rt_serial_device *serial, rt_ubase_t flag)
     struct stm32_uart *uart;
 
     RT_ASSERT(serial != RT_NULL);
+    RT_ASSERT(flag == RT_DEVICE_FLAG_DMA_TX || flag == RT_DEVICE_FLAG_DMA_RX);
     uart = rt_container_of(serial, struct stm32_uart, serial);
 
     if (RT_DEVICE_FLAG_DMA_RX == flag)
@@ -966,7 +962,7 @@ static void stm32_dma_config(struct rt_serial_device *serial, rt_ubase_t flag)
         DMA_Handle = &uart->dma_rx.handle;
         dma_config = uart->config->dma_rx;
     }
-    else if (RT_DEVICE_FLAG_DMA_TX == flag)
+    else /* RT_DEVICE_FLAG_DMA_TX == flag */
     {
         DMA_Handle = &uart->dma_tx.handle;
         dma_config = uart->config->dma_tx;
