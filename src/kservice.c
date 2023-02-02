@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2021, RT-Thread Development Team
+ * Copyright (c) 2006-2022, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -20,6 +20,7 @@
  * 2021-02-28     Meco Man     add RT_KSERVICE_USING_STDLIB
  * 2021-12-20     Meco Man     implement rt_strcpy()
  * 2022-01-07     Gabriel      add __on_rt_assert_hook
+ * 2022-06-04     Meco Man     remove strnlen
  */
 
 #include <rtthread.h>
@@ -44,6 +45,47 @@ static volatile int __rt_errno;
 #if defined(RT_USING_DEVICE) && defined(RT_USING_CONSOLE)
 static rt_device_t _console_device = RT_NULL;
 #endif
+
+RT_WEAK void rt_hw_us_delay(rt_uint32_t us)
+{
+    (void) us;
+    RT_DEBUG_LOG(RT_DEBUG_DEVICE, ("rt_hw_us_delay() doesn't support for this board."
+        "Please consider implementing rt_hw_us_delay() in another file.\n"));
+}
+
+static const char* rt_errno_strs[] =
+{
+    "OK",
+    "ERROR",
+    "ETIMOUT",
+    "ERSFULL",
+    "ERSEPTY",
+    "ENOMEM",
+    "ENOSYS",
+    "EBUSY",
+    "EIO",
+    "EINTRPT",
+    "EINVAL",
+    "EUNKNOW"
+};
+
+/**
+ * This function return a pointer to a string that contains the
+ * message of error.
+ *
+ * @param error the errorno code
+ * @return a point to error message string
+ */
+const char *rt_strerror(rt_err_t error)
+{
+    if (error < 0)
+        error = -error;
+
+    return (error > RT_EINVAL + 1) ?
+           rt_errno_strs[RT_EINVAL + 1] :
+           rt_errno_strs[error];
+}
+RTM_EXPORT(rt_strerror);
 
 /**
  * This function gets the global errno for the current thread.
@@ -117,7 +159,7 @@ int *_rt_errno(void)
 }
 RTM_EXPORT(_rt_errno);
 
-#ifndef RT_KSERVICE_USING_STDLIB_MEMSET
+#ifndef RT_KSERVICE_USING_STDLIB_MEMORY
 /**
  * This function will set the content of memory to specified value.
  *
@@ -203,9 +245,7 @@ RT_WEAK void *rt_memset(void *s, int c, rt_ubase_t count)
 #endif /* RT_KSERVICE_USING_TINY_SIZE */
 }
 RTM_EXPORT(rt_memset);
-#endif /* RT_KSERVICE_USING_STDLIB_MEMSET */
 
-#ifndef RT_KSERVICE_USING_STDLIB_MEMCPY
 /**
  * This function will copy memory content from source address to destination address.
  *
@@ -247,7 +287,7 @@ RT_WEAK void *rt_memcpy(void *dst, const void *src, rt_ubase_t count)
     char *src_ptr = (char *)src;
     long *aligned_dst;
     long *aligned_src;
-    int len = count;
+    rt_ubase_t len = count;
 
     /* If the size is small, or either SRC or DST is unaligned,
     then punt into the byte copy loop.  This should be rare. */
@@ -289,9 +329,6 @@ RT_WEAK void *rt_memcpy(void *dst, const void *src, rt_ubase_t count)
 #endif /* RT_KSERVICE_USING_TINY_SIZE */
 }
 RTM_EXPORT(rt_memcpy);
-#endif /* RT_KSERVICE_USING_STDLIB_MEMCPY */
-
-#ifndef RT_KSERVICE_USING_STDLIB
 
 /**
  * This function will move memory content from source address to destination
@@ -354,7 +391,9 @@ rt_int32_t rt_memcmp(const void *cs, const void *ct, rt_size_t count)
     return res;
 }
 RTM_EXPORT(rt_memcmp);
+#endif /* RT_KSERVICE_USING_STDLIB_MEMORY*/
 
+#ifndef RT_KSERVICE_USING_STDLIB
 /**
  * This function will return the first occurrence of a string, without the
  * terminator '\0'.
@@ -491,7 +530,7 @@ RTM_EXPORT(rt_strcpy);
  */
 rt_int32_t rt_strncmp(const char *cs, const char *ct, rt_size_t count)
 {
-    register signed char __res = 0;
+    signed char __res = 0;
 
     while (count)
     {
@@ -549,7 +588,6 @@ RTM_EXPORT(rt_strlen);
 
 #endif /* RT_KSERVICE_USING_STDLIB */
 
-#if !defined(RT_KSERVICE_USING_STDLIB) || defined(__ARMCC_VERSION)
 /**
  * The  strnlen()  function  returns the number of characters in the
  * string pointed to by s, excluding the terminating null byte ('\0'),
@@ -573,10 +611,6 @@ rt_size_t rt_strnlen(const char *s, rt_ubase_t maxlen)
     return sc - s;
 }
 RTM_EXPORT(rt_strnlen);
-#ifdef __ARMCC_VERSION
-rt_size_t strnlen(const char *s, rt_size_t maxlen) __attribute__((alias("rt_strnlen")));
-#endif /* __ARMCC_VERSION */
-#endif /* !defined(RT_KSERVICE_USING_STDLIB) || defined(__ARMCC_VERSION) */
 
 #ifdef RT_USING_HEAP
 /**
@@ -599,9 +633,6 @@ char *rt_strdup(const char *s)
     return tmp;
 }
 RTM_EXPORT(rt_strdup);
-#ifdef __ARMCC_VERSION
-char *strdup(const char *s) __attribute__((alias("rt_strdup")));
-#endif /* __ARMCC_VERSION */
 #endif /* RT_USING_HEAP */
 
 /**
@@ -629,18 +660,18 @@ RTM_EXPORT(rt_show_version);
  *
  * @return the duplicated string pointer.
  */
-#ifdef RT_PRINTF_LONGLONG
+#ifdef RT_KPRINTF_USING_LONGLONG
 rt_inline int divide(long long *n, int base)
 #else
 rt_inline int divide(long *n, int base)
-#endif /* RT_PRINTF_LONGLONG */
+#endif /* RT_KPRINTF_USING_LONGLONG */
 {
     int res;
 
     /* optimized for processor which does not support divide instructions. */
     if (base == 10)
     {
-#ifdef RT_PRINTF_LONGLONG
+#ifdef RT_KPRINTF_USING_LONGLONG
         res = (int)(((unsigned long long)*n) % 10U);
         *n = (long long)(((unsigned long long)*n) / 10U);
 #else
@@ -650,7 +681,7 @@ rt_inline int divide(long *n, int base)
     }
     else
     {
-#ifdef RT_PRINTF_LONGLONG
+#ifdef RT_KPRINTF_USING_LONGLONG
         res = (int)(((unsigned long long)*n) % 16U);
         *n = (long long)(((unsigned long long)*n) / 16U);
 #else
@@ -664,7 +695,7 @@ rt_inline int divide(long *n, int base)
 
 rt_inline int skip_atoi(const char **s)
 {
-    register int i = 0;
+    int i = 0;
     while (_ISDIGIT(**s))
         i = i * 10 + *((*s)++) - '0';
 
@@ -681,11 +712,11 @@ rt_inline int skip_atoi(const char **s)
 
 static char *print_number(char *buf,
                           char *end,
-#ifdef RT_PRINTF_LONGLONG
+#ifdef RT_KPRINTF_USING_LONGLONG
                           long long  num,
 #else
                           long  num,
-#endif /* RT_PRINTF_LONGLONG */
+#endif /* RT_KPRINTF_USING_LONGLONG */
                           int   base,
                           int   s,
 #ifdef RT_PRINTF_PRECISION
@@ -694,17 +725,16 @@ static char *print_number(char *buf,
                           int   type)
 {
     char c, sign;
-#ifdef RT_PRINTF_LONGLONG
+#ifdef RT_KPRINTF_USING_LONGLONG
     char tmp[32];
 #else
     char tmp[16];
-#endif /* RT_PRINTF_LONGLONG */
+#endif /* RT_KPRINTF_USING_LONGLONG */
     int precision_bak = precision;
     const char *digits;
     static const char small_digits[] = "0123456789abcdef";
     static const char large_digits[] = "0123456789ABCDEF";
-    register int i;
-    register int size;
+    int i, size;
 
     size = s;
 
@@ -855,11 +885,11 @@ static char *print_number(char *buf,
  */
 RT_WEAK int rt_vsnprintf(char *buf, rt_size_t size, const char *fmt, va_list args)
 {
-#ifdef RT_PRINTF_LONGLONG
+#ifdef RT_KPRINTF_USING_LONGLONG
     unsigned long long num;
 #else
     rt_uint32_t num;
-#endif /* RT_PRINTF_LONGLONG */
+#endif /* RT_KPRINTF_USING_LONGLONG */
     int i, len;
     char *str, *end, c;
     const char *s;
@@ -941,21 +971,21 @@ RT_WEAK int rt_vsnprintf(char *buf, rt_size_t size, const char *fmt, va_list arg
 #endif /* RT_PRINTF_PRECISION */
         /* get the conversion qualifier */
         qualifier = 0;
-#ifdef RT_PRINTF_LONGLONG
+#ifdef RT_KPRINTF_USING_LONGLONG
         if (*fmt == 'h' || *fmt == 'l' || *fmt == 'L')
 #else
         if (*fmt == 'h' || *fmt == 'l')
-#endif /* RT_PRINTF_LONGLONG */
+#endif /* RT_KPRINTF_USING_LONGLONG */
         {
             qualifier = *fmt;
             ++ fmt;
-#ifdef RT_PRINTF_LONGLONG
+#ifdef RT_KPRINTF_USING_LONGLONG
             if (qualifier == 'l' && *fmt == 'l')
             {
                 qualifier = 'L';
                 ++ fmt;
             }
-#endif /* RT_PRINTF_LONGLONG */
+#endif /* RT_KPRINTF_USING_LONGLONG */
         }
 
         /* the default base */
@@ -1073,12 +1103,12 @@ RT_WEAK int rt_vsnprintf(char *buf, rt_size_t size, const char *fmt, va_list arg
             continue;
         }
 
-#ifdef RT_PRINTF_LONGLONG
+#ifdef RT_KPRINTF_USING_LONGLONG
         if (qualifier == 'L') num = va_arg(args, long long);
         else if (qualifier == 'l')
 #else
         if (qualifier == 'l')
-#endif /* RT_PRINTF_LONGLONG */
+#endif /* RT_KPRINTF_USING_LONGLONG */
         {
             num = va_arg(args, rt_uint32_t);
             if (flags & SIGN) num = (rt_int32_t)num;
@@ -1555,6 +1585,8 @@ RT_WEAK void rt_free(void *rmem)
 
     /* call 'rt_free' hook */
     RT_OBJECT_HOOK_CALL(rt_free_hook, (rmem));
+    /* NULL check */
+    if (rmem == RT_NULL) return;
     /* Enter critical zone */
     level = _heap_lock();
     _MEM_FREE(rmem);
@@ -1676,6 +1708,8 @@ RT_WEAK void rt_free_align(void *ptr)
 {
     void *real_ptr;
 
+    /* NULL check */
+    if (ptr == RT_NULL) return;
     real_ptr = (void *) * (rt_ubase_t *)((rt_ubase_t)ptr - sizeof(void *));
     rt_free(real_ptr);
 }
