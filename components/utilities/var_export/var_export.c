@@ -83,7 +83,7 @@ int var_export_init(void)
     static char __vexp_strbuf1[1024];
     static char __vexp_strbuf2[1024];
     ve_exporter_t ve_exporter_temp;
-    int index_i, index_j;
+    rt_size_t index_i, index_j;
 
     /* past the three members in first ptr_begin */
     ptr_begin += (sizeof(struct ve_exporter) / sizeof(unsigned int));
@@ -181,7 +181,7 @@ const ve_exporter_t *ve_iter_next(ve_iterator_t *iter)
 }
 
 /* binary search based on identifier */
-static const ve_exporter_t *ve_binary_search(ve_module_t *mod, const char *identifier)
+const ve_exporter_t *ve_binary_search(ve_module_t *mod, const char *identifier)
 {
     int ve_low_num = 0;
     int ve_high_num = mod->end - mod->begin;
@@ -236,4 +236,9 @@ rt_bool_t ve_value_exist(ve_module_t *mod, const char *identifier)
     {
         return RT_FALSE;
     }
+}
+
+rt_size_t ve_value_count(ve_module_t *mod)
+{
+    return mod->end - mod->begin + 1;
 }
