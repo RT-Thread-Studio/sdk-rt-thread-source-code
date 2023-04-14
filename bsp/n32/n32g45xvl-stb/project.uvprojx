@@ -13,7 +13,7 @@
         <TargetCommonOption>
           <Device>N32G457VEL7</Device>
           <Vendor>Nationstech</Vendor>
-          <PackID>Nationstech.N32G45x_DFP.1.0.1</PackID>
+          <PackID>Nationstech.N32G45x_DFP.1.0.5</PackID>
           <PackURL>http://www.keil.com/pack/</PackURL>
           <Cpu>IRAM(0x20000000,0x24000) IROM(0x08000000,0x80000) CPUTYPE("Cortex-M4") FPU2 CLOCK(12000000) ELITTLE</Cpu>
           <FlashUtilSpec />
@@ -334,9 +334,9 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls />
-              <Define>__STDC_LIMIT_MACROS, USE_STDPERIPH_DRIVER, RT_USING_LIBC, __CLK_TCK=RT_TICK_PER_SECOND, N32G45X, __RTTHREAD__, RT_USING_ARM_LIBC</Define>
+              <Define>__STDC_LIMIT_MACROS, RT_USING_ARMLIBC, USE_STDPERIPH_DRIVER, RT_USING_LIBC, __CLK_TCK=RT_TICK_PER_SECOND, N32G45X, __RTTHREAD__</Define>
               <Undefine />
-              <IncludePath>applications;.;..\..\..\components\libc\compilers\common\include;..\..\..\components\libc\compilers\common\extension;..\..\..\components\libc\compilers\common\extension\fcntl\octal;..\..\..\libcpu\arm\common;..\..\..\libcpu\arm\cortex-m4;..\..\..\components\drivers\include;..\..\..\components\drivers\include;..\..\..\components\drivers\include;..\..\..\components\drivers\include;..\..\..\components\drivers\include;..\..\..\components\drivers\include;..\..\..\components\drivers\spi;..\..\..\components\drivers\include;..\..\..\components\drivers\include;board;..\libraries\n32_drivers;..\libraries\n32_drivers\config;..\..\..\components\finsh;.;..\..\..\include;..\libraries\N32G45x_Firmware_Library\CMSIS\device;..\libraries\N32G45x_Firmware_Library\CMSIS\core;..\libraries\N32G45x_Firmware_Library\n32g45x_std_periph_driver\inc;..\..\..\components\libc\posix\io\poll;..\..\..\components\libc\posix\io\stdio;..\..\..\components\libc\posix\ipc</IncludePath>
+              <IncludePath>..\libraries\N32G45x_Firmware_Library\CMSIS\device;..\..\..\components\libc\compilers\common\extension;..\..\..\components\drivers\include;..\..\..\include;..\..\..\components\finsh;..\..\..\components\drivers\include;..\..\..\components\drivers\spi;..\libraries\N32G45x_Firmware_Library\n32g45x_std_periph_driver\inc;..\..\..\components\libc\compilers\common\extension\fcntl\octal;..\..\..\components\drivers\include;..\..\..\components\libc\posix\io\stdio;.;..\libraries\n32_drivers;..\libraries\N32G45x_Firmware_Library\CMSIS\core;board;..\libraries\n32_drivers\config;applications;..\..\..\components\drivers\include;..\..\..\components\drivers\include;..\..\..\libcpu\arm\cortex-m4;..\..\..\components\drivers\include;..\..\..\libcpu\arm\common;..\..\..\components\drivers\include;..\..\..\components\libc\posix\ipc;..\..\..\components\drivers\include;..\..\..\components\drivers\include;..\..\..\components\libc\posix\io\poll;..\..\..\components\libc\compilers\common\include</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -450,9 +450,9 @@
           <GroupName>CPU</GroupName>
           <Files>
             <File>
-              <FileName>backtrace.c</FileName>
+              <FileName>atomic_arm.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\libcpu\arm\common\backtrace.c</FilePath>
+              <FilePath>..\..\..\libcpu\arm\common\atomic_arm.c</FilePath>
             </File>
           </Files>
           <Files>
@@ -593,6 +593,13 @@
           </Files>
           <Files>
             <File>
+              <FileName>rtc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\components\drivers\rtc\rtc.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
               <FileName>serial.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\components\drivers\serial\serial.c</FilePath>
@@ -669,6 +676,13 @@
               <FileName>drv_hwtimer.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\libraries\n32_drivers\drv_hwtimer.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>drv_rtc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\libraries\n32_drivers\drv_rtc.c</FilePath>
             </File>
           </Files>
           <Files>
@@ -805,9 +819,9 @@
           </Files>
           <Files>
             <File>
-              <FileName>scheduler.c</FileName>
+              <FileName>scheduler_up.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\src\scheduler.c</FilePath>
+              <FilePath>..\..\..\src\scheduler_up.c</FilePath>
             </File>
           </Files>
           <Files>
@@ -827,6 +841,13 @@
         </Group>
         <Group>
           <GroupName>Libraries</GroupName>
+          <Files>
+            <File>
+              <FileName>n32g45x_pwr.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\libraries\N32G45x_Firmware_Library\n32g45x_std_periph_driver\src\n32g45x_pwr.c</FilePath>
+            </File>
+          </Files>
           <Files>
             <File>
               <FileName>n32g45x_usart.c</FileName>
@@ -881,6 +902,13 @@
               <FileName>n32g45x_adc.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\libraries\N32G45x_Firmware_Library\n32g45x_std_periph_driver\src\n32g45x_adc.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>n32g45x_rtc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\libraries\N32G45x_Firmware_Library\n32g45x_std_periph_driver\src\n32g45x_rtc.c</FilePath>
             </File>
           </Files>
           <Files>

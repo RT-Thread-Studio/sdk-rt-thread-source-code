@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2022, RT-Thread Development Team
+ * Copyright (c) 2006-2023, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -279,7 +279,7 @@ static rt_err_t spi_configure(struct rt_spi_device *device, struct rt_spi_config
 
     if(cfg->data_width != 8 && cfg->data_width != 16 && cfg->data_width != 32)
     {
-        return RT_EINVAL;
+        return -RT_EINVAL;
     }
 
     LPSPI_MasterGetDefaultConfig(&masterConfig);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2018, RT-Thread Development Team
+ * Copyright (c) 2006-2022, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -11,7 +11,7 @@
 #ifndef __ILI_H__
 #define __ILI_H__
 
-#include "touch.h"
+#include <rtdevice.h>
 
 int rt_hw_ili_tpc_init(const char *name, struct rt_touch_config *cfg);
 

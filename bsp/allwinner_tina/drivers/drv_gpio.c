@@ -25,7 +25,7 @@
 /*********************************************************
 **   IO
 *********************************************************/
-int gpio_set_func(enum gpio_port port, enum gpio_pin pin, rt_uint8_t func)
+rt_err_t gpio_set_func(enum gpio_port port, enum gpio_pin pin, rt_uint8_t func)
 {
     rt_uint32_t addr;
     rt_uint32_t offset;
@@ -37,7 +37,7 @@ int gpio_set_func(enum gpio_port port, enum gpio_pin pin, rt_uint8_t func)
     if (func & 0x8)
     {
         LOG_W("[line]:%d There is a warning with parameter input", __LINE__);
-        return RT_EINVAL;
+        return -RT_EINVAL;
     }
 
     addr = GPIOn_CFG_ADDR(port) + (pin / 8) * 4;
@@ -64,7 +64,7 @@ int gpio_set_value(enum gpio_port port, enum gpio_pin pin, rt_uint8_t value)
     if (value & 0xE)
     {
         LOG_W("[line]:%d There is a warning with parameter input", __LINE__);
-        return RT_EINVAL;
+        return -RT_EINVAL;
     }
 
     addr = GPIOn_DATA_ADDR(port);
@@ -109,7 +109,7 @@ int gpio_set_pull_mode(enum gpio_port port,  enum gpio_pin pin, enum gpio_pull p
     if (pull & 0xC)
     {
         LOG_W("[line]:%d There is a warning with parameter input", __LINE__);
-        return RT_EINVAL;
+        return -RT_EINVAL;
     }
 
     addr = GPIOn_PUL_ADDR(port);
@@ -137,7 +137,7 @@ int gpio_set_drive_level(enum gpio_port port, enum gpio_pin pin, enum gpio_drv_l
     if (level & 0xC)
     {
         LOG_W("[line]:%d There is a warning with parameter input", __LINE__);
-        return RT_EINVAL;
+        return -RT_EINVAL;
     }
 
     addr = GPIOn_DRV_ADDR(port);
@@ -469,7 +469,7 @@ static rt_err_t pin_attach_irq(struct rt_device *device, rt_int32_t pin, rt_uint
     if ((pin > PIN_NUM(pin_index)) || (pin_index[pin].magic != PIN_MAGIC))
     {
         LOG_E("pin:%d value wrongful", pin);
-        return RT_ERROR;
+        return -RT_ERROR;
     }
 
     gpio_set_irq_callback(pin_index[pin].pin_port, pin_index[pin].pin, hdr, args);
@@ -481,7 +481,7 @@ static rt_err_t pin_detach_irq(struct rt_device *device, rt_int32_t pin)
     if ((pin > PIN_NUM(pin_index)) || (pin_index[pin].magic != PIN_MAGIC))
     {
         LOG_E("pin:%d value wrongful", pin);
-        return RT_ERROR;
+        return -RT_ERROR;
     }
 
     gpio_clear_irq_callback(pin_index[pin].pin_port, pin_index[pin].pin);
@@ -494,7 +494,7 @@ rt_err_t pin_irq_enable(struct rt_device *device, rt_base_t pin, rt_uint32_t ena
     if ((pin > PIN_NUM(pin_index)) || (pin_index[pin].magic != PIN_MAGIC))
     {
         LOG_E("pin:%d value wrongful", pin);
-        return RT_ERROR;
+        return -RT_ERROR;
     }
 
     if (enabled)

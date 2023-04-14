@@ -7,13 +7,13 @@
       <TargetName>rtthread-lpc55s6x</TargetName>
       <ToolsetNumber>0x4</ToolsetNumber>
       <ToolsetName>ARM-ADS</ToolsetName>
-      <pCCUsed>6120000::V6.12::.\ARMCLANG</pCCUsed>
+      <pCCUsed>6160000::V6.16::ARMCLANG</pCCUsed>
       <uAC6>1</uAC6>
       <TargetOption>
         <TargetCommonOption>
           <Device>LPC55S69JBD100:cm33_core0</Device>
           <Vendor>NXP</Vendor>
-          <PackID>NXP.LPC55S69_DFP.13.0.0</PackID>
+          <PackID>NXP.LPC55S69_DFP.14.0.0</PackID>
           <PackURL>https://mcuxpresso.nxp.com/cmsis_pack/repo/</PackURL>
           <Cpu>IRAM(0x20000000,0x044000) IRAM2(0x04000000,0x8000) IROM(0x00000000,0x098000) XRAM(0x40100000,0x4000) CPUTYPE("Cortex-M33") FPU3(SFPU) DSP TZ CLOCK(12000000) ELITTLE</Cpu>
           <FlashUtilSpec />
@@ -46,7 +46,7 @@
             <InvalidFlash>1</InvalidFlash>
           </TargetStatus>
           <OutputDirectory>.\build\</OutputDirectory>
-          <OutputName>rtthread-lpc55s6x</OutputName>
+          <OutputName>rtthread</OutputName>
           <CreateExecutable>1</CreateExecutable>
           <CreateLib>0</CreateLib>
           <CreateHexFile>0</CreateHexFile>
@@ -334,9 +334,9 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls>--target=arm-arm-none-eabi</MiscControls>
-              <Define>CPU_LPC55S69JBD100_cm33_core0, RT_USING_LIBC, __CLK_TCK=RT_TICK_PER_SECOND, __STDC_LIMIT_MACROS, __RTTHREAD__, RT_USING_ARM_LIBC</Define>
+              <Define>__STDC_LIMIT_MACROS, RT_USING_ARMLIBC, RT_USING_LIBC, __CLK_TCK=RT_TICK_PER_SECOND, __RTTHREAD__, DEBUG</Define>
               <Undefine />
-              <IncludePath>applications;..\..\..\components\libc\compilers\common\include;..\..\..\components\libc\compilers\common\extension;..\..\..\components\libc\compilers\common\extension\fcntl\octal;..\..\..\libcpu\arm\common;..\..\..\libcpu\arm\cortex-m33;..\..\..\components\drivers\include;..\..\..\components\drivers\include;..\..\..\components\drivers\include;board;board\MCUX_Config\board;..\Libraries\drivers;..\Libraries\drivers\config;..\..\..\components\finsh;.;..\..\..\include;..\Libraries\LPC55S6X\CMSIS\Include;..\Libraries\LPC55S6X\components\codec;..\Libraries\LPC55S6X\LPC55S6X;..\Libraries\LPC55S6X\LPC55S6X\drivers;..\Libraries\LPC55S6X\middleware\sdmmc\inc;..\Libraries\LPC55S6X\middleware\sdmmc\port;..\..\..\components\libc\posix\io\poll;..\..\..\components\libc\posix\io\stdio;..\..\..\components\libc\posix\ipc</IncludePath>
+              <IncludePath>..\..\..\components\drivers\include;..\Libraries\LPC55S6X\middleware\sdmmc\port;..\..\..\components\dfs\filesystems\devfs;..\..\..\components\libc\compilers\common\extension;..\..\..\components\drivers\include;..\..\..\include;..\..\..\components\finsh;board\MCUX_Config\board;..\..\..\components\drivers\include;..\..\..\components\drivers\spi;..\..\..\components\libc\compilers\common\extension\fcntl\octal;..\..\..\components\drivers\include;..\..\..\components\libc\posix\io\stdio;.;..\..\..\components\dfs\filesystems\elmfat;..\Libraries\LPC55S6X\LPC55S6X;..\..\..\components\libc\posix\io\poll;..\Libraries\LPC55S6X\components\codec;..\Libraries\CMSIS\Core\Include;..\Libraries\drivers;..\..\..\libcpu\arm\cortex-m33;..\..\..\components\dfs\include;..\..\..\components\drivers\include;..\..\..\libcpu\arm\common;..\..\..\components\drivers\include;..\..\..\components\libc\posix\ipc;board;..\Libraries\LPC55S6X\middleware\sdmmc\inc;..\..\..\components\drivers\include;..\Libraries\drivers\config;..\..\..\components\libc\compilers\common\include;..\Libraries\LPC55S6X\LPC55S6X\drivers;applications</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -349,9 +349,9 @@
             <NoWarn>0</NoWarn>
             <uSurpInc>0</uSurpInc>
             <useXO>0</useXO>
-            <ClangAsOpt>4</ClangAsOpt>
+            <ClangAsOpt>1</ClangAsOpt>
             <VariousControls>
-              <MiscControls />
+              <MiscControls>-x assembler-with-cpp</MiscControls>
               <Define />
               <Undefine />
               <IncludePath />
@@ -367,7 +367,7 @@
             <TextAddressRange>0x00000000</TextAddressRange>
             <DataAddressRange>0x02000000</DataAddressRange>
             <pXoBase />
-            <ScatterFile>.\board\linker_scripts\LPC55S69_cm33_core0_flash_mdk.scf</ScatterFile>
+            <ScatterFile>.\board\linker_scripts\LPC55S69_cm33_core0_flash.scf</ScatterFile>
             <IncludeLibs />
             <IncludeLibsPath />
             <Misc />
@@ -450,9 +450,9 @@
           <GroupName>CPU</GroupName>
           <Files>
             <File>
-              <FileName>backtrace.c</FileName>
+              <FileName>atomic_arm.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\libcpu\arm\common\backtrace.c</FilePath>
+              <FilePath>..\..\..\libcpu\arm\common\atomic_arm.c</FilePath>
             </File>
           </Files>
           <Files>
@@ -500,6 +500,20 @@
         </Group>
         <Group>
           <GroupName>DeviceDrivers</GroupName>
+          <Files>
+            <File>
+              <FileName>i2c_core.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\components\drivers\i2c\i2c_core.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>i2c_dev.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\components\drivers\i2c\i2c_dev.c</FilePath>
+            </File>
+          </Files>
           <Files>
             <File>
               <FileName>completion.c</FileName>
@@ -558,9 +572,72 @@
           </Files>
           <Files>
             <File>
+              <FileName>rtc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\components\drivers\rtc\rtc.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>block_dev.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\components\drivers\sdio\block_dev.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>gpt.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\components\drivers\sdio\gpt.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>mmc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\components\drivers\sdio\mmc.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>mmcsd_core.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\components\drivers\sdio\mmcsd_core.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>sd.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\components\drivers\sdio\sd.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>sdio.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\components\drivers\sdio\sdio.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
               <FileName>serial.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\components\drivers\serial\serial.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>spi_core.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\components\drivers\spi\spi_core.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>spi_dev.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\components\drivers\spi\spi_dev.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -589,6 +666,13 @@
           </Files>
           <Files>
             <File>
+              <FileName>drv_i2c.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Libraries\drivers\drv_i2c.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
               <FileName>drv_key.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Libraries\drivers\drv_key.c</FilePath>
@@ -603,6 +687,13 @@
           </Files>
           <Files>
             <File>
+              <FileName>drv_mma8562.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Libraries\drivers\drv_mma8562.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
               <FileName>drv_pin.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Libraries\drivers\drv_pin.c</FilePath>
@@ -610,9 +701,89 @@
           </Files>
           <Files>
             <File>
+              <FileName>drv_rtc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Libraries\drivers\drv_rtc.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>drv_sdif.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Libraries\drivers\drv_sdif.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>drv_spi.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Libraries\drivers\drv_spi.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
               <FileName>drv_uart.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Libraries\drivers\drv_uart.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Filesystem</GroupName>
+          <Files>
+            <File>
+              <FileName>devfs.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\components\dfs\filesystems\devfs\devfs.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>dfs_elm.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\components\dfs\filesystems\elmfat\dfs_elm.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>ff.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\components\dfs\filesystems\elmfat\ff.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>ffunicode.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\components\dfs\filesystems\elmfat\ffunicode.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>dfs.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\components\dfs\src\dfs.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>dfs_file.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\components\dfs\src\dfs_file.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>dfs_fs.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\components\dfs\src\dfs_fs.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>dfs_posix.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\components\dfs\src\dfs_posix.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -644,6 +815,13 @@
               <FileName>cmd.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\components\finsh\cmd.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>msh_file.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\components\finsh\msh_file.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -721,9 +899,9 @@
           </Files>
           <Files>
             <File>
-              <FileName>scheduler.c</FileName>
+              <FileName>scheduler_up.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\src\scheduler.c</FilePath>
+              <FilePath>..\..\..\src\scheduler_up.c</FilePath>
             </File>
           </Files>
           <Files>
@@ -766,20 +944,6 @@
           </Files>
           <Files>
             <File>
-              <FileName>fsl_sdmmc_host.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Libraries\LPC55S6X\middleware\sdmmc\port\sdif\rt_thread\fsl_sdmmc_host.c</FilePath>
-            </File>
-          </Files>
-          <Files>
-            <File>
-              <FileName>fsl_sdmmc_event.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Libraries\LPC55S6X\middleware\sdmmc\port\sdif\rt_thread\fsl_sdmmc_event.c</FilePath>
-            </File>
-          </Files>
-          <Files>
-            <File>
               <FileName>fsl_cmp.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Libraries\LPC55S6X\LPC55S6X\drivers\fsl_cmp.c</FilePath>
@@ -794,9 +958,9 @@
           </Files>
           <Files>
             <File>
-              <FileName>fsl_sd.c</FileName>
+              <FileName>fsl_common_arm.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Libraries\LPC55S6X\middleware\sdmmc\src\fsl_sd.c</FilePath>
+              <FilePath>..\Libraries\LPC55S6X\LPC55S6X\drivers\fsl_common_arm.c</FilePath>
             </File>
           </Files>
           <Files>
@@ -804,13 +968,6 @@
               <FileName>fsl_power.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Libraries\LPC55S6X\LPC55S6X\drivers\fsl_power.c</FilePath>
-            </File>
-          </Files>
-          <Files>
-            <File>
-              <FileName>fsl_sdmmc_common.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Libraries\LPC55S6X\middleware\sdmmc\src\fsl_sdmmc_common.c</FilePath>
             </File>
           </Files>
           <Files>
@@ -1011,13 +1168,6 @@
           </Files>
           <Files>
             <File>
-              <FileName>fsl_prince.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Libraries\LPC55S6X\LPC55S6X\drivers\fsl_prince.c</FilePath>
-            </File>
-          </Files>
-          <Files>
-            <File>
               <FileName>fsl_i2c.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Libraries\LPC55S6X\LPC55S6X\drivers\fsl_i2c.c</FilePath>
@@ -1035,13 +1185,6 @@
               <FileName>system_LPC55S69_cm33_core0.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Libraries\LPC55S6X\LPC55S6X\system_LPC55S69_cm33_core0.c</FilePath>
-            </File>
-          </Files>
-          <Files>
-            <File>
-              <FileName>arm_keil_lib_power_cm33_core0.lib</FileName>
-              <FileType>4</FileType>
-              <FilePath>..\Libraries\LPC55S6X\LPC55S6X\arm\keil_lib_power_cm33_core0.lib</FilePath>
             </File>
           </Files>
           <Files>
