@@ -90,7 +90,7 @@ rt_err_t ra_can_configure(struct rt_can_device *can_dev, struct can_configure *c
     err = R_CAN_Open(can->config->p_api_ctrl, can->config->p_cfg);
     if (FSP_SUCCESS != err)
     {
-        return RT_ERROR;
+        return -RT_ERROR;
     }
     return RT_EOK;
 }
@@ -187,7 +187,7 @@ int ra_can_sendmsg(struct rt_can_device *can_dev, const void *buf, rt_uint32_t b
     if (R_CAN_Write(can->config->p_api_ctrl, boxno, &g_can_tx_frame) != FSP_SUCCESS)
     {
         rt_exit_critical();
-        return RT_ERROR;
+        return -RT_ERROR;
     }
     return RT_EOK;
 }
@@ -212,7 +212,7 @@ int ra_can_recvmsg(struct rt_can_device *can_dev, void *buf, rt_uint32_t boxno)
     msg_rt->rsv = RT_NULL;
     msg_rt->len = msg_ra->data_length_code;
     msg_rt->priv = boxno;
-    msg_rt->hdr = RT_NULL;
+    msg_rt->hdr_index = RT_NULL;
     memcpy(msg_rt->data, msg_ra->data, msg_ra->data_length_code);
     return sizeof(struct rt_can_msg);
 }

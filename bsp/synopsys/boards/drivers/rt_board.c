@@ -29,7 +29,7 @@ static rt_err_t _configure(struct rt_serial_device *serial, struct serial_config
     ret = uart->uart_control(UART_CMD_SET_BAUD, (void *)(cfg->baud_rate));
 
     if (ret != E_OK) {
-        return RT_ERROR;
+        return -RT_ERROR;
     }
 
 
@@ -59,7 +59,7 @@ static rt_err_t _control(struct rt_serial_device *serial, int cmd, void *arg)
             break;
 
         default:
-            return  RT_ERROR;
+            return  -RT_ERROR;
             break;
     }
 
@@ -180,7 +180,7 @@ int rt_hw_uart_init(void)
         ret = uart->uart_open(config.baud_rate);
 
         if (ret != E_OPNED && ret != E_OK) {
-            return RT_ERROR;
+            return -RT_ERROR;
         }
 
         /* enable rx int */
@@ -202,7 +202,7 @@ int rt_hw_uart_init(void)
         ret = uart->uart_open(config.baud_rate);
 
         if (ret != E_OPNED && ret != E_OK) {
-            return RT_ERROR;
+            return -RT_ERROR;
         }
 
         /* enable rx int */
@@ -224,7 +224,7 @@ int rt_hw_uart_init(void)
         ret = uart->uart_open(config.baud_rate);
 
         if (ret != E_OPNED && ret != E_OK) {
-            return RT_ERROR;
+            return -RT_ERROR;
         }
 
         /* enable rx int */
@@ -246,7 +246,7 @@ int rt_hw_uart_init(void)
         ret = uart->uart_open(config.baud_rate);
 
         if (ret != E_OPNED && ret != E_OK) {
-            return RT_ERROR;
+            return -RT_ERROR;
         }
 
         /* enable rx int */
@@ -302,7 +302,7 @@ void rt_hw_board_init()
 
 static void rt_hw_timer_isr(int vector, void *param)
 {
-    timer_int_clear(BOARD_OS_TIMER_ID);
+    arc_timer_int_clear(BOARD_OS_TIMER_ID);
     rt_tick_increase();
 }
 
@@ -312,8 +312,8 @@ int rt_hw_timer_init(void)
     unsigned int cyc = BOARD_CPU_CLOCK / RT_TICK_PER_SECOND;
 
     int_disable(BOARD_OS_TIMER_INTNO); /* disable os timer interrupt */
-    timer_stop(BOARD_OS_TIMER_ID);
-    timer_start(BOARD_OS_TIMER_ID, TIMER_CTRL_IE | TIMER_CTRL_NH, cyc);
+    arc_timer_stop(BOARD_OS_TIMER_ID);
+    arc_timer_start(BOARD_OS_TIMER_ID, TIMER_CTRL_IE | TIMER_CTRL_NH, cyc);
 
     int_handler_install(BOARD_OS_TIMER_INTNO, (INT_HANDLER_T)rt_hw_timer_isr);
     int_pri_set(BOARD_OS_TIMER_INTNO, INT_PRI_MIN + 1); /* currently, firq(INT_PRI_MIN) not supported*/

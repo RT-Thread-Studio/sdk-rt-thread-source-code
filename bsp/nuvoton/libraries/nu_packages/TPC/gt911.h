@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2018, RT-Thread Development Team
+ * Copyright (c) 2006-2022, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -11,7 +11,7 @@
 #ifndef __GT911_H__
 #define __GT911_H__
 
-#include "touch.h"
+#include <rtdevice.h>
 
 #define GT911_ADDR_LEN          2
 #define GT911_REGITER_LEN       2

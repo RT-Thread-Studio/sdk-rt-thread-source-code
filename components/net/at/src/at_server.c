@@ -538,7 +538,7 @@ int at_server_init(void)
     }
 
     /* initialize the AT commands table.*/
-#if defined(__CC_ARM)                                 /* ARM C Compiler */
+#if defined(__ARMCC_VERSION)                                 /* ARM C Compiler */
     extern const int RtAtCmdTab$$Base;
     extern const int RtAtCmdTab$$Limit;
     cmd_table = (at_cmd_t)&RtAtCmdTab$$Base;
@@ -638,12 +638,12 @@ __exit:
 }
 INIT_COMPONENT_EXPORT(at_server_init);
 
-RT_WEAK void at_port_reset(void)
+rt_weak void at_port_reset(void)
 {
     LOG_E("The reset for AT server is not implement.");
 }
 
-RT_WEAK void at_port_factory_reset(void)
+rt_weak void at_port_factory_reset(void)
 {
     LOG_E("The factory reset for AT server is not implement.");
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2018, RT-Thread Development Team
+ * Copyright (c) 2006-2022, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -11,7 +11,7 @@
 #ifndef __FT5446_H__
 #define __FT5446_H__
 
-#include "touch.h"
+#include <rtdevice.h>
 
 #define FT_REGITER_LEN           1
 #define FT_MAX_TOUCH             5

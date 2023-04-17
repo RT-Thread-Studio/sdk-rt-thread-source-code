@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2021, RT-Thread Development Team
+ * Copyright (c) 2006-2022, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -212,7 +212,7 @@ static rt_err_t drv_pwm_control(struct rt_device_pwm *device, int cmd, void *arg
     case PWM_CMD_GET:
         return drv_pwm_get(p_mcu, configuration);
     default:
-        return RT_EINVAL;
+        return -RT_EINVAL;
     }
 }
 
@@ -397,7 +397,7 @@ static int pwm_led_sample(int argc, char *argv[])
     if (pwm_dev == RT_NULL)
     {
         rt_kprintf("pwm sample run failed! can't find %s device!\n", PWM_DEV_NAME);
-        return RT_ERROR;
+        return -RT_ERROR;
     }
 
     rt_pwm_set(pwm_dev, PWM_DEV_CHANNEL, period, pulse);

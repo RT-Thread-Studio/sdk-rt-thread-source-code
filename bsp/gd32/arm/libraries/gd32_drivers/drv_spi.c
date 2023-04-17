@@ -96,8 +96,8 @@ static void gd32_spi_init(struct gd32_spi *gd32_spi)
     /*GPIO pin configuration*/
     gpio_af_set(gd32_spi->spi_port, GPIO_AF_5,  gd32_spi->sck_pin | gd32_spi->mosi_pin | gd32_spi->miso_pin);
 
-    gpio_mode_set(gd32_spi->spi_port, GPIO_MODE_AF, GPIO_PUPD_NONE, gd32_spi->miso_pin| gd32_spi->miso_pin);
-    gpio_output_options_set(gd32_spi->spi_port, GPIO_OTYPE_PP, GPIO_OSPEED_200MHZ,gd32_spi->miso_pin| gd32_spi->miso_pin);
+    gpio_mode_set(gd32_spi->spi_port, GPIO_MODE_AF, GPIO_PUPD_NONE, gd32_spi->sck_pin | gd32_spi->mosi_pin | gd32_spi->miso_pin);
+    gpio_output_options_set(gd32_spi->spi_port, GPIO_OTYPE_PP, GPIO_OSPEED_200MHZ, gd32_spi->sck_pin | gd32_spi->mosi_pin | gd32_spi->miso_pin);
 
 #else
     /* Init SPI SCK MOSI */
@@ -134,7 +134,7 @@ static rt_err_t spi_configure(struct rt_spi_device* device,
     }
     else
     {
-        return RT_EIO;
+        return -RT_EIO;
     }
 
     /* baudrate */

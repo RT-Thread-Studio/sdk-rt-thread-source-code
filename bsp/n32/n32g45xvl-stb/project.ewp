@@ -2221,7 +2221,7 @@
   <group>
     <name>CPU</name>
     <file>
-      <name>$PROJ_DIR$\..\..\..\libcpu\arm\common\backtrace.c</name>
+      <name>$PROJ_DIR$\..\..\..\libcpu\arm\common\atomic_arm.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\..\..\libcpu\arm\common\div0.c</name>
@@ -2284,6 +2284,9 @@
       <name>$PROJ_DIR$\..\..\..\components\drivers\misc\pin.c</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\..\..\..\components\drivers\rtc\rtc.c</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\..\..\components\drivers\serial\serial.c</name>
     </file>
     <file>
@@ -2318,6 +2321,9 @@
     </file>
     <file>
       <name>$PROJ_DIR$\..\libraries\n32_drivers\drv_hwtimer.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\libraries\n32_drivers\drv_rtc.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\libraries\n32_drivers\drv_spi.c</name>
@@ -2380,7 +2386,7 @@
       <name>$PROJ_DIR$\..\..\..\src\object.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\..\src\scheduler.c</name>
+      <name>$PROJ_DIR$\..\..\..\src\scheduler_up.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\..\..\src\thread.c</name>
@@ -2391,6 +2397,9 @@
   </group>
   <group>
     <name>Libraries</name>
+    <file>
+      <name>$PROJ_DIR$\..\libraries\N32G45x_Firmware_Library\n32g45x_std_periph_driver\src\n32g45x_pwr.c</name>
+    </file>
     <file>
       <name>$PROJ_DIR$\..\libraries\N32G45x_Firmware_Library\n32g45x_std_periph_driver\src\n32g45x_usart.c</name>
     </file>
@@ -2414,6 +2423,9 @@
     </file>
     <file>
       <name>$PROJ_DIR$\..\libraries\N32G45x_Firmware_Library\n32g45x_std_periph_driver\src\n32g45x_adc.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\libraries\N32G45x_Firmware_Library\n32g45x_std_periph_driver\src\n32g45x_rtc.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\libraries\N32G45x_Firmware_Library\n32g45x_std_periph_driver\src\n32g45x_gpio.c</name>
