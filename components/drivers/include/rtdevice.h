@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2021, RT-Thread Development Team
+ * Copyright (c) 2006-2023, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -94,7 +94,11 @@ extern "C" {
 #endif /* RT_USING_PIN */
 
 #ifdef RT_USING_SENSOR
+#ifdef RT_USING_SENSOR_V2
+#include "drivers/sensor_v2.h"
+#else
 #include "drivers/sensor.h"
+#endif /* RT_USING_SENSOR_V2 */
 #endif /* RT_USING_SENSOR */
 
 #ifdef RT_USING_CAN
@@ -164,6 +168,22 @@ extern "C" {
 #ifdef RT_USING_LCD
 #include "drivers/lcd.h"
 #endif
+
+#ifdef RT_USING_DM
+#include "drivers/core/dm.h"
+
+#ifdef RT_USING_OFW
+#include "drivers/ofw.h"
+#include "drivers/ofw_fdt.h"
+#include "drivers/ofw_io.h"
+#include "drivers/ofw_irq.h"
+#include "drivers/ofw_raw.h"
+#endif /* RT_USING_OFW */
+
+#ifdef RT_USING_PIC
+#include "drivers/pic.h"
+#endif
+#endif /* RT_USING_DM */
 
 #ifdef __cplusplus
 }

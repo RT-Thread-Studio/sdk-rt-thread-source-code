@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2021, RT-Thread Development Team
+ * Copyright (c) 2006-2023, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -45,8 +45,8 @@ struct rt_i2c_bus_device_ops
                             struct rt_i2c_msg msgs[],
                             rt_uint32_t num);
     rt_err_t (*i2c_bus_control)(struct rt_i2c_bus_device *bus,
-                                rt_uint32_t,
-                                rt_uint32_t);
+                                int cmd,
+                                void *args);
 };
 
 /*for i2c bus driver*/
@@ -74,8 +74,8 @@ rt_ssize_t rt_i2c_transfer(struct rt_i2c_bus_device *bus,
                           struct rt_i2c_msg         msgs[],
                           rt_uint32_t               num);
 rt_err_t rt_i2c_control(struct rt_i2c_bus_device *bus,
-                        rt_uint32_t               cmd,
-                        rt_uint32_t               arg);
+                        int cmd,
+                        void *args);
 rt_ssize_t rt_i2c_master_send(struct rt_i2c_bus_device *bus,
                              rt_uint16_t               addr,
                              rt_uint16_t               flags,

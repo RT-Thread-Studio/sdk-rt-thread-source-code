@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2006-2021, RT-Thread Development Team
+ * Copyright (c) 2006-2023, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
  * Change Logs:
  * Date           Author       Notes
- * 2021.12.07     linzhenxing      first version
+ * 2021-12-07     linzhenxing  first version
+ * 2023-06-26     WangXiaoyao  fix bug on foreground app switch
  */
 #include <dfs_file.h>
 #include <dfs_fs.h>
@@ -27,7 +28,7 @@
 #endif /* RT_TTY_DEBUG */
 #include <rtdbg.h>
 
-struct termios tty_std_termios = {  /* for the benefit of tty drivers  */
+const struct termios tty_std_termios = {  /* for the benefit of tty drivers  */
     .c_iflag = IMAXBEL | IUCLC | INLCR | ICRNL | IGNPAR,
     .c_oflag = OPOST,
     .c_cflag = B38400 | CS8 | CREAD | HUPCL,
@@ -41,7 +42,7 @@ struct termios tty_std_termios = {  /* for the benefit of tty drivers  */
 void tty_initstack(struct tty_node *node)
 {
     node->lwp = RT_NULL;
-    node->next = node;
+    node->next = RT_NULL;
 }
 
 static struct tty_node tty_node_cache = { RT_NULL, RT_NULL };
@@ -125,26 +126,6 @@ struct rt_lwp *tty_pop(struct tty_node **head, struct rt_lwp *target_lwp)
     return lwp;
 }
 
-rt_inline int tty_sigismember(lwp_sigset_t *set, int _sig)
-{
-    unsigned long sig = _sig - 1;
-
-    if (_LWP_NSIG_WORDS == 1)
-    {
-        return 1 & (set->sig[0] >> sig);
-    }
-    else
-    {
-        return 1 & (set->sig[sig / _LWP_NSIG_BPW] >> (sig % _LWP_NSIG_BPW));
-    }
-}
-
-static int is_ignored(int sig)
-{
-    return (tty_sigismember(&current->signal_mask, sig) ||
-        current->signal_handler[sig-1] == SIG_IGN);
-}
-
 /**
  *  tty_check_change    -   check for POSIX terminal changes
  *  @tty: tty to check
@@ -159,7 +140,6 @@ static int is_ignored(int sig)
 int __tty_check_change(struct tty_struct *tty, int sig)
 {
     pid_t pgrp = 0, tty_pgrp = 0;
-    struct rt_lwp *lwp = tty->foreground;
     int ret = 0;
     int level = 0;
 
@@ -181,20 +161,7 @@ int __tty_check_change(struct tty_struct *tty, int sig)
 
     if (tty_pgrp && (pgrp != tty->pgrp))
     {
-        if (is_ignored(sig))
-        {
-            if (sig == SIGTTIN)
-            {
-                ret = -EIO;
-            }
-        }
-        else
-        {
-            if (lwp)
-            {
-                lwp_kill(lwp_to_pid(lwp), sig);
-            }
-        }
+        lwp_signal_kill(current, sig, SI_USER, 0);
     }
     rt_hw_interrupt_enable(level);
 
@@ -210,7 +177,7 @@ int tty_check_change(struct tty_struct *tty)
     return __tty_check_change(tty, SIGTTOU);
 }
 
-static int tty_open(struct dfs_fd *fd)
+static int tty_open(struct dfs_file *fd)
 {
     int ret = 0;
     int noctty = 0;
@@ -219,6 +186,7 @@ static int tty_open(struct dfs_fd *fd)
 
     tty = (struct tty_struct *)fd->vnode->data;
     RT_ASSERT(tty != RT_NULL);
+
     ld = tty->ldisc;
     if (ld->ops->open)
     {
@@ -251,7 +219,7 @@ static int tty_open(struct dfs_fd *fd)
     return ret;
 }
 
-static int tty_close(struct dfs_fd *fd)
+static int tty_close(struct dfs_file *fd)
 {
     int ret = 0;
     struct tty_struct *tty = RT_NULL;
@@ -304,7 +272,7 @@ static int tiocsctty(struct tty_struct *tty, int arg)
     return 0;
 }
 
-static int tty_ioctl(struct dfs_fd *fd, int cmd, void *args)
+static int tty_ioctl(struct dfs_file *fd, int cmd, void *args)
 {
     int ret = 0;
     struct tty_struct *tty = RT_NULL;
@@ -322,11 +290,13 @@ static int tty_ioctl(struct dfs_fd *fd, int cmd, void *args)
     {
         real_tty = tty;
     }
+
     switch (cmd)
     {
     case TIOCSCTTY:
         return tiocsctty(real_tty, 1);
     }
+
     ld = tty->ldisc;
     if (ld->ops->ioctl)
     {
@@ -335,7 +305,11 @@ static int tty_ioctl(struct dfs_fd *fd, int cmd, void *args)
     return ret;
 }
 
-static int tty_read(struct dfs_fd *fd, void *buf, size_t count)
+#ifdef RT_USING_DFS_V2
+static ssize_t tty_read(struct dfs_file *fd, void *buf, size_t count, off_t *pos)
+#else
+static ssize_t tty_read(struct dfs_file *fd, void *buf, size_t count)
+#endif
 {
     int ret = 0;
     struct tty_struct *tty = RT_NULL;
@@ -343,15 +317,20 @@ static int tty_read(struct dfs_fd *fd, void *buf, size_t count)
 
     tty = (struct tty_struct *)fd->vnode->data;
     RT_ASSERT(tty != RT_NULL);
+
     ld = tty->ldisc;
-    if (ld->ops->read)
+    if (ld && ld->ops->read)
     {
         ret = ld->ops->read(fd, buf, count);
     }
     return ret;
 }
 
-static int tty_write(struct dfs_fd *fd, const void *buf, size_t count)
+#ifdef RT_USING_DFS_V2
+static ssize_t tty_write(struct dfs_file *fd, const void *buf, size_t count, off_t *pos)
+#else
+static ssize_t tty_write(struct dfs_file *fd, const void *buf, size_t count )
+#endif
 {
     int ret = 0;
     struct tty_struct *tty = RT_NULL;
@@ -359,15 +338,17 @@ static int tty_write(struct dfs_fd *fd, const void *buf, size_t count)
 
     tty = (struct tty_struct *)fd->vnode->data;
     RT_ASSERT(tty != RT_NULL);
+
     ld = tty->ldisc;
-    if (ld->ops->write)
+    if (ld && ld->ops->write)
     {
         ret = ld->ops->write(fd, buf, count);
     }
+
     return ret;
 }
 
-static int tty_poll(struct dfs_fd *fd, struct rt_pollreq *req)
+static int tty_poll(struct dfs_file *fd, struct rt_pollreq *req)
 {
     int ret = 0;
     struct tty_struct *tty = RT_NULL;
@@ -385,40 +366,47 @@ static int tty_poll(struct dfs_fd *fd, struct rt_pollreq *req)
 
 static const struct dfs_file_ops tty_fops =
 {
-    tty_open,
-    tty_close,
-    tty_ioctl,
-    tty_read,
-    tty_write,
-    RT_NULL, /* flush */
-    RT_NULL, /* lseek */
-    RT_NULL, /* getdents */
-    tty_poll,
-};
-static const struct dfs_file_ops console_fops =
-{
-    tty_open,
-    tty_close,
-    tty_ioctl,
-    tty_read,
-    tty_write,
-    RT_NULL, /* flush */
-    RT_NULL, /* lseek */
-    RT_NULL, /* getdents */
-    tty_poll,
+    .open   = tty_open,
+    .close  = tty_close,
+    .ioctl  = tty_ioctl,
+    .read   = tty_read,
+    .write  = tty_write,
+    .poll   = tty_poll,
 };
 
-void console_init()
+const struct dfs_file_ops *tty_get_fops(void)
 {
-    n_tty_init();
+    return &tty_fops;
 }
 
-void tty_set_fops(struct dfs_file_ops *fops)
+int tty_init(struct tty_struct *tty, int type, int subtype, struct rt_device *iodev)
 {
-    *fops = tty_fops;
-}
+    if (tty)
+    {
+        struct tty_node *node = NULL;
 
-void console_set_fops(struct dfs_file_ops *fops)
-{
-    *fops = console_fops;
+        node = rt_calloc(1, sizeof(struct tty_node));
+        if (node)
+        {
+            tty->type = type;
+            tty->subtype = subtype;
+            tty->io_dev = iodev;
+
+            tty->head = node;
+            tty_initstack(tty->head);
+
+            tty->pgrp = -1;
+            tty->session = -1;
+            tty->foreground = RT_NULL;
+
+            rt_mutex_init(&tty->lock, "ttyLock", RT_IPC_FLAG_PRIO);
+            rt_wqueue_init(&tty->wait_queue);
+
+            tty_ldisc_init(tty);
+            tty->init_termios = tty_std_termios;
+            tty->init_flag = TTY_INIT_FLAG_REGED;
+        }
+    }
+
+    return 0;
 }

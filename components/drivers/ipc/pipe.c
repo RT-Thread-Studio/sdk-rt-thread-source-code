@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2021, RT-Thread Development Team
+ * Copyright (c) 2006-2023, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -7,6 +7,8 @@
  * Date           Author       Notes
  * 2012-09-30     Bernard      first version.
  * 2017-11-08     JasonJiaJie  fix memory leak issue when close a pipe.
+ * 2023-06-28     shell        return POLLHUP when writer closed its channel on poll()
+ *                             fix flag test on pipe_fops_open()
  */
 #include <rthw.h>
 #include <rtdevice.h>
@@ -52,7 +54,7 @@ static resource_id_t id_mgr = RESOURCE_ID_INIT(RT_UNAMED_PIPE_NUMBER, resoure_id
  *           When the return value is -1, it means the file descriptor is invalid.
  *           When the return value is -RT_ENOMEM, it means insufficient memory allocation failed.
  */
-static int pipe_fops_open(struct dfs_fd *fd)
+static int pipe_fops_open(struct dfs_file *fd)
 {
     int rc = 0;
     rt_pipe_t *pipe;
@@ -65,12 +67,12 @@ static int pipe_fops_open(struct dfs_fd *fd)
 
     rt_mutex_take(&pipe->lock, RT_WAITING_FOREVER);
 
-    if ((fd->flags & O_RDONLY) == O_RDONLY)
+    if ((fd->flags & O_ACCMODE) == O_RDONLY)
     {
         pipe->reader = 1;
     }
 
-    if ((fd->flags & O_WRONLY) == O_WRONLY)
+    if ((fd->flags & O_ACCMODE) == O_WRONLY)
     {
         pipe->writer = 1;
     }
@@ -99,7 +101,7 @@ __exit:
  *           When the return value is 0, it means the operation is successful.
  *           When the return value is -1, it means the file descriptor is invalid.
  */
-static int pipe_fops_close(struct dfs_fd *fd)
+static int pipe_fops_close(struct dfs_file *fd)
 {
     rt_device_t device;
     rt_pipe_t *pipe;
@@ -164,7 +166,7 @@ static int pipe_fops_close(struct dfs_fd *fd)
  *           When the return value is 0, it means the operation is successful.
  *           When the return value is -EINVAL, it means the command is invalid.
  */
-static int pipe_fops_ioctl(struct dfs_fd *fd, int cmd, void *args)
+static int pipe_fops_ioctl(struct dfs_file *fd, int cmd, void *args)
 {
     rt_pipe_t *pipe;
     int ret = 0;
@@ -200,7 +202,11 @@ static int pipe_fops_ioctl(struct dfs_fd *fd, int cmd, void *args)
  *           When the return value is 0, it means O_NONBLOCK is enabled and there is no thread that has the pipe open for writing.
  *           When the return value is -EAGAIN, it means there are no data to be read.
  */
-static int pipe_fops_read(struct dfs_fd *fd, void *buf, size_t count)
+#ifdef RT_USING_DFS_V2
+static ssize_t pipe_fops_read(struct dfs_file *fd, void *buf, size_t count, off_t *pos)
+#else
+static ssize_t pipe_fops_read(struct dfs_file *fd, void *buf, size_t count)
+#endif
 {
     int len = 0;
     rt_pipe_t *pipe;
@@ -254,7 +260,11 @@ out:
  *           When the return value is -EAGAIN, it means O_NONBLOCK is enabled and there are no space to be written.
  *           When the return value is -EPIPE, it means there is no thread that has the pipe open for reading.
  */
-static int pipe_fops_write(struct dfs_fd *fd, const void *buf, size_t count)
+#ifdef RT_USING_DFS_V2
+static ssize_t pipe_fops_write(struct dfs_file *fd, const void *buf, size_t count, off_t *pos)
+#else
+static ssize_t pipe_fops_write(struct dfs_file *fd, const void *buf, size_t count)
+#endif
 {
     int len;
     rt_pipe_t *pipe;
@@ -325,7 +335,7 @@ static int pipe_fops_write(struct dfs_fd *fd, const void *buf, size_t count)
  *           POLLOUT means there is space to be written.
  *           POLLERR means there is no thread that occupied the pipe to open for reading.
  */
-static int pipe_fops_poll(struct dfs_fd *fd, rt_pollreq_t *req)
+static int pipe_fops_poll(struct dfs_file *fd, rt_pollreq_t *req)
 {
     int mask = 0;
     rt_pipe_t *pipe;
@@ -354,6 +364,10 @@ static int pipe_fops_poll(struct dfs_fd *fd, rt_pollreq_t *req)
         {
             mask |= POLLIN;
         }
+        else if (pipe->writer == 0)
+        {
+            mask = POLLHUP;
+        }
     }
 
     if (mode & 2)
@@ -369,15 +383,12 @@ static int pipe_fops_poll(struct dfs_fd *fd, rt_pollreq_t *req)
 
 static const struct dfs_file_ops pipe_fops =
 {
-    pipe_fops_open,
-    pipe_fops_close,
-    pipe_fops_ioctl,
-    pipe_fops_read,
-    pipe_fops_write,
-    RT_NULL,
-    RT_NULL,
-    RT_NULL,
-    pipe_fops_poll,
+    .open  = pipe_fops_open,
+    .close = pipe_fops_close,
+    .ioctl = pipe_fops_ioctl,
+    .read  = pipe_fops_read,
+    .write = pipe_fops_write,
+    .poll  = pipe_fops_poll,
 };
 #endif /* defined(RT_USING_POSIX_DEVIO) && defined(RT_USING_POSIX_PIPE) */
 

@@ -353,7 +353,7 @@ void rt_object_init(struct rt_object         *object,
                     const char               *name)
 {
     rt_base_t level;
-#ifdef RT_DEBUG
+#ifdef RT_USING_DEBUG
     struct rt_list_node *node = RT_NULL;
 #endif
     struct rt_object_information *information;
@@ -365,7 +365,7 @@ void rt_object_init(struct rt_object         *object,
     information = rt_object_get_information(type);
     RT_ASSERT(information != RT_NULL);
 
-#ifdef RT_DEBUG
+#ifdef RT_USING_DEBUG
     /* check object type to avoid re-initialization */
 
     /* enter critical */
@@ -633,6 +633,30 @@ rt_object_t rt_object_find(const char *name, rt_uint8_t type)
     rt_exit_critical();
 
     return RT_NULL;
+}
+
+/**
+ * @brief This function will return the name of the specified object container
+ *
+ * @param object    the specified object to be get name
+ * @param name      buffer to store the object name string
+ * @param name_size  maximum size of the buffer to store object name
+ *
+ * @return -RT_EINVAL if any parameter is invalid or RT_EOK if the operation is successfully executed
+ *
+ * @note this function shall not be invoked in interrupt status
+ */
+rt_err_t rt_object_get_name(rt_object_t object, char *name, rt_uint8_t name_size)
+{
+    rt_err_t result = -RT_EINVAL;
+    if ((object != RT_NULL) && (name != RT_NULL) && (name_size != 0U))
+    {
+        const char *obj_name = object->name;
+        (void) rt_strncpy(name, obj_name, (rt_size_t)name_size);
+        result = RT_EOK;
+    }
+
+    return result;
 }
 
 #ifdef RT_USING_HEAP

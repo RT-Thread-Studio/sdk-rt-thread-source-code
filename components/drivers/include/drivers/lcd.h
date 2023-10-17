@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2022, RT-Thread Development Team
+ * Copyright (c) 2006-2023, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -17,6 +17,7 @@
 #define FBIOGET_VSCREENINFO     0x4600
 #define FBIOPUT_VSCREENINFO     0x4601
 #define FBIOGET_FSCREENINFO     0x4602
+#define FBIOGET_PIXELINFO       0x4603
 #define FBIOGETCMAP             0x4604
 #define FBIOPUTCMAP             0x4605
 #define FBIOPAN_DISPLAY         0x4606
@@ -103,7 +104,7 @@ struct fb_fix_screeninfo
     /* (physical address) */
     uint32_t mmio_len;         /* Length of Memory Mapped I/O */
     uint32_t accel;            /* Indicate to driver which */
-    /*  specific chip/card we have	*/
+    /*  specific chip/card we have  */
     uint16_t capabilities;     /* see FB_CAP_* */
     uint16_t reserved[2];      /* Reserved for future compatibility */
 };

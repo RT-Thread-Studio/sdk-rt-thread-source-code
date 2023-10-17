@@ -155,6 +155,7 @@ static const char *get_exception_msg(int id)
 void handle_user(rt_size_t scause, rt_size_t stval, rt_size_t sepc, struct rt_hw_stack_frame *sp)
 {
     rt_size_t id = __MASKVALUE(scause, __MASK(63UL));
+    struct rt_lwp *lwp;
 
     /* user page fault */
     enum rt_mm_fault_op fault_op;
@@ -203,13 +204,14 @@ void handle_user(rt_size_t scause, rt_size_t stval, rt_size_t sepc, struct rt_hw
 
     if (fault_op)
     {
+        lwp = lwp_self();
         struct rt_aspace_fault_msg msg = {
             .fault_op = fault_op,
             .fault_type = fault_type,
             .fault_vaddr = (void *)stval,
         };
 
-        if (rt_aspace_fault_try_fix(&msg))
+        if (lwp && rt_aspace_fault_try_fix(lwp->aspace, &msg))
         {
             return;
         }
@@ -220,10 +222,10 @@ void handle_user(rt_size_t scause, rt_size_t stval, rt_size_t sepc, struct rt_hw
 
     rt_hw_backtrace((uint32_t *)sp->s0_fp, sepc);
 
-    LOG_E("User Fault, killing thread: %s", rt_thread_self()->name);
+    LOG_E("User Fault, killing thread: %s", rt_thread_self()->parent.name);
 
     EXIT_TRAP;
-    sys_exit(-1);
+    sys_exit_group(-1);
 }
 #endif
 
@@ -332,7 +334,7 @@ void handle_trap(rt_size_t scause, rt_size_t stval, rt_size_t sepc, struct rt_hw
     rt_kprintf("scause:0x%p,stval:0x%p,sepc:0x%p\n", scause, stval, sepc);
     dump_regs(sp);
     rt_kprintf("--------------Thread list--------------\n");
-    rt_kprintf("current thread: %s\n", rt_thread_self()->name);
+    rt_kprintf("current thread: %s\n", rt_thread_self()->parent.name);
 
     extern struct rt_thread *rt_current_thread;
     rt_kprintf("--------------Backtrace--------------\n");

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2021, RT-Thread Development Team
+ * Copyright (c) 2006-2023, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -9,9 +9,8 @@
  * 2016-10-31     armink       fix some resume push and pop thread bugs
  */
 
-#include <rtthread.h>
-#include <rtdevice.h>
 #include <rthw.h>
+#include <rtdevice.h>
 
 #define DATAQUEUE_MAGIC  0xbead0e0e
 

@@ -28,7 +28,7 @@
 
 static int _fetch_page(rt_varea_t varea, struct rt_aspace_fault_msg *msg)
 {
-    int err;
+    int err = UNRECOVERABLE;
     msg->response.status = MM_FAULT_STATUS_UNRECOVERABLE;
     msg->response.vaddr = 0;
     msg->response.size = 0;
@@ -89,22 +89,23 @@ static int _exec_fault(rt_varea_t varea, void *pa, struct rt_aspace_fault_msg *m
     return err;
 }
 
-int rt_aspace_fault_try_fix(struct rt_aspace_fault_msg *msg)
+int rt_aspace_fault_try_fix(rt_aspace_t aspace, struct rt_aspace_fault_msg *msg)
 {
-    struct rt_lwp *lwp = lwp_self();
     int err = UNRECOVERABLE;
     uintptr_t va = (uintptr_t)msg->fault_vaddr;
     va &= ~ARCH_PAGE_MASK;
     msg->fault_vaddr = (void *)va;
 
-    if (lwp)
+    if (aspace)
     {
-        rt_aspace_t aspace = lwp->aspace;
-        rt_varea_t varea = _aspace_bst_search(aspace, msg->fault_vaddr);
+        rt_varea_t varea;
+
+        RD_LOCK(aspace);
+        varea = _aspace_bst_search(aspace, msg->fault_vaddr);
         if (varea)
         {
             void *pa = rt_hw_mmu_v2p(aspace, msg->fault_vaddr);
-            msg->off = (msg->fault_vaddr - varea->start) >> ARCH_PAGE_SHIFT;
+            msg->off = ((char *)msg->fault_vaddr - (char *)varea->start) >> ARCH_PAGE_SHIFT;
 
             /* permission checked by fault op */
             switch (msg->fault_op)
@@ -120,6 +121,7 @@ int rt_aspace_fault_try_fix(struct rt_aspace_fault_msg *msg)
                 break;
             }
         }
+        RD_UNLOCK(aspace);
     }
 
     return err;

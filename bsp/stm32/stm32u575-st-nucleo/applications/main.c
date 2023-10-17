@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2021, RT-Thread Development Team
+ * Copyright (c) 2006-2023, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -13,7 +13,7 @@
 #include <board.h>
 
 /* defined the LED0 pin: PC7 */
-#define LED0_PIN    GET_PIN(G, 2)
+#define LED0_PIN    GET_PIN(B, 7)
 
 int main(void)
 {

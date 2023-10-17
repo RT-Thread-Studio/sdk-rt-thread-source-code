@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2021, RT-Thread Development Team
+ * Copyright (c) 2006-2023, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -11,10 +11,8 @@
  */
 
 #include <stdint.h>
-
 #include <rthw.h>
 #include <rtdevice.h>
-#include <rtservice.h>
 
 /**
  * @brief    This function will insert a node to the wait queue.
