@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2021, RT-Thread Development Team
+ * Copyright (c) 2006-2023, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -9,7 +9,8 @@
 #ifndef COMPLETION_H_
 #define COMPLETION_H_
 
-#include <rtthread.h>
+#include <rtdef.h>
+#include <rtconfig.h>
 
 /**
  * Completion

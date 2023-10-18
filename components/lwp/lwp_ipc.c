@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2006-2020, RT-Thread Development Team
+ * Copyright (c) 2006-2023, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
  * Change Logs:
  * Date           Author       Notes
  * 2019-10-12     Jesven       first version
+ * 2023-09-16     zmq810150896 Increased versatility of some features on dfs v2
  */
 #include <rtthread.h>
 #include <rthw.h>
@@ -16,6 +17,10 @@
 
 #include <dfs_file.h>
 #include <poll.h>
+
+#ifdef RT_USING_DFS_V2
+#include <dfs_dentry.h>
+#endif
 
 /**
  * the IPC channel states
@@ -357,6 +362,69 @@ static void sender_timeout(void *parameter)
 }
 
 /**
+ * Get file vnode from fd.
+ */
+static void *_ipc_msg_get_file(int fd)
+{
+    struct dfs_file *d;
+
+    d = fd_get(fd);
+    if (d == RT_NULL)
+        return RT_NULL;
+
+    if (!d->vnode)
+        return RT_NULL;
+
+    return (void *)d;
+}
+
+/**
+ * Get fd from file vnode.
+ */
+static int _ipc_msg_fd_new(void *file)
+{
+    int fd;
+    struct dfs_file *d;
+    struct dfs_file *df = RT_NULL;
+
+    if (file == RT_NULL)
+    {
+        return -1;
+    }
+
+    df = (struct dfs_file *)file;
+
+    fd = fd_new();
+    if (fd < 0)
+    {
+        return -1;
+    }
+
+    d = fd_get(fd);
+    if (!d)
+    {
+        fd_release(fd);
+        return -1;
+    }
+
+#ifdef RT_USING_DFS_V2
+    d->fops = df->fops;
+    d->mode = df->mode;
+    d->dentry = df->dentry;
+    d->dentry->ref_count ++;
+#endif
+
+    d->vnode = df->vnode;
+    d->flags = df->flags;
+    d->data = df->data;
+    d->magic = df->magic;
+
+    d->vnode->ref_count ++;
+
+    return fd;
+}
+
+/**
  * Send data through an IPC channel, wait for the reply or not.
  */
 static rt_err_t _rt_raw_channel_send_recv_timeout(rt_channel_t ch, rt_channel_msg_t data, int need_reply, rt_channel_msg_t data_ret, rt_int32_t time)
@@ -396,6 +464,12 @@ static rt_err_t _rt_raw_channel_send_recv_timeout(rt_channel_t ch, rt_channel_ms
     {
         rt_hw_interrupt_enable(temp);
         return -RT_ENOMEM;
+    }
+
+    /* IPC message : file descriptor */
+    if (data->type == RT_CHANNEL_FD)
+    {
+        data->u.fd.file = _ipc_msg_get_file(data->u.fd.fd);
     }
 
     rt_ipc_msg_init(msg, data, need_reply);
@@ -686,6 +760,10 @@ static rt_err_t _rt_raw_channel_recv_timeout(rt_channel_t ch, rt_channel_msg_t d
             ch->stat = RT_IPC_STAT_ACTIVE;  /* no valid suspened receivers */
         }
         *data = msg_ret->msg;      /* extract the transferred data */
+        if (data->type == RT_CHANNEL_FD)
+        {
+            data->u.fd.fd = _ipc_msg_fd_new(data->u.fd.file);
+        }
         _ipc_msg_free(msg_ret);     /* put back the message to kernel */
     }
     else
@@ -740,6 +818,10 @@ static rt_err_t _rt_raw_channel_recv_timeout(rt_channel_t ch, rt_channel_msg_t d
         }
         /* If waked up, the received message has been store into the thread. */
         *data = ((rt_ipc_msg_t)(thread->msg_ret))->msg;    /* extract data */
+        if (data->type == RT_CHANNEL_FD)
+        {
+            data->u.fd.fd = _ipc_msg_fd_new(data->u.fd.file);
+        }
         _ipc_msg_free(thread->msg_ret);     /* put back the message to kernel */
         thread->msg_ret = RT_NULL;
     }
@@ -783,7 +865,7 @@ static int lwp_fd_new(int fdt_type)
     return fdt_fd_new(fdt);
 }
 
-static struct dfs_fd *lwp_fd_get(int fdt_type, int fd)
+static struct dfs_file *lwp_fd_get(int fdt_type, int fd)
 {
     struct dfs_fdtable *fdt;
 
@@ -830,7 +912,7 @@ static int _chfd_alloc(int fdt_type)
 
 static void _chfd_free(int fd, int fdt_type)
 {
-    struct dfs_fd *d;
+    struct dfs_file *d;
 
     d = lwp_fd_get(fdt_type, fd);
     if (d == RT_NULL)
@@ -841,7 +923,7 @@ static void _chfd_free(int fd, int fdt_type)
 }
 
 /* for fops */
-static int channel_fops_poll(struct dfs_fd *file, struct rt_pollreq *req)
+static int channel_fops_poll(struct dfs_file *file, struct rt_pollreq *req)
 {
     int mask = POLLOUT;
     rt_channel_t ch;
@@ -859,7 +941,7 @@ static int channel_fops_poll(struct dfs_fd *file, struct rt_pollreq *req)
     return mask;
 }
 
-static int channel_fops_close(struct dfs_fd *file)
+static int channel_fops_close(struct dfs_file *file)
 {
     rt_channel_t ch;
     rt_base_t level;
@@ -887,22 +969,15 @@ static int channel_fops_close(struct dfs_fd *file)
 
 static const struct dfs_file_ops channel_fops =
 {
-    NULL,    /* open     */
-    channel_fops_close,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,    /* lseek    */
-    NULL,    /* getdents */
-    channel_fops_poll,
+    .close = channel_fops_close,    /* close */
+    .poll = channel_fops_poll,      /* poll */
 };
 
 int lwp_channel_open(int fdt_type, const char *name, int flags)
 {
     int fd;
     rt_channel_t ch = RT_NULL;
-    struct dfs_fd *d;
+    struct dfs_file *d;
 
     fd = _chfd_alloc(fdt_type);     /* allocate an IPC channel descriptor */
     if (fd == -1)
@@ -910,7 +985,7 @@ int lwp_channel_open(int fdt_type, const char *name, int flags)
         goto quit;
     }
     d = lwp_fd_get(fdt_type, fd);
-    d->vnode = (struct dfs_fnode *)rt_malloc(sizeof(struct dfs_fnode));
+    d->vnode = (struct dfs_vnode *)rt_malloc(sizeof(struct dfs_vnode));
     if (!d->vnode)
     {
         _chfd_free(fd, fdt_type);
@@ -921,20 +996,11 @@ int lwp_channel_open(int fdt_type, const char *name, int flags)
     ch = rt_raw_channel_open(name, flags);
     if (ch)
     {
-        rt_memset(d->vnode, 0, sizeof(struct dfs_fnode));
-        rt_list_init(&d->vnode->list);
-        d->vnode->type = FT_USER;
-        d->vnode->path = NULL;
-        d->vnode->fullpath = NULL;
-
-        d->vnode->fops = &channel_fops;
-
+        /* initialize vnode */
+        dfs_vnode_init(d->vnode, FT_USER, &channel_fops);
         d->flags = O_RDWR; /* set flags as read and write */
-        d->vnode->size = 0;
-        d->pos = 0;
-        d->vnode->ref_count = 1;
 
-        /* set socket to the data of dfs_fd */
+        /* set socket to the data of dfs_file */
         d->vnode->data = (void *)ch;
     }
     else
@@ -950,7 +1016,7 @@ quit:
 
 static rt_channel_t fd_2_channel(int fdt_type, int fd)
 {
-    struct dfs_fd *d;
+    struct dfs_file *d;
 
     d = lwp_fd_get(fdt_type, fd);
     if (d)
@@ -969,8 +1035,8 @@ static rt_channel_t fd_2_channel(int fdt_type, int fd)
 rt_err_t lwp_channel_close(int fdt_type, int fd)
 {
     rt_channel_t ch;
-    struct dfs_fd *d;
-    struct dfs_fnode *vnode;
+    struct dfs_file *d;
+    struct dfs_vnode *vnode;
 
     d = lwp_fd_get(fdt_type, fd);
     if (!d)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2021, RT-Thread Development Team
+ * Copyright (c) 2006-2023, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -164,6 +164,10 @@ static rt_ssize_t rt_hwtimer_read(struct rt_device *dev, rt_off_t pos, void *buf
     if (timer->info->cntmode == HWTIMER_CNTMODE_DW)
     {
         cnt = (rt_uint32_t)(timer->freq * timer->period_sec) - cnt;
+    }
+    if (timer->mode == HWTIMER_MODE_ONESHOT)
+    {
+        overflow = 0;
     }
 
     t = overflow * timer->period_sec + cnt/(float)timer->freq;

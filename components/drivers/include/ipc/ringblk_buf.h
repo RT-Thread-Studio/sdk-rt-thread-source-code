@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2021, RT-Thread Development Team
+ * Copyright (c) 2006-2023, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -10,6 +10,9 @@
 
 #ifndef _RINGBLK_BUF_H_
 #define _RINGBLK_BUF_H_
+
+#include <rtdef.h>
+#include <rtconfig.h>
 
 /*
  * Introduction:

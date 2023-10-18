@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2021, RT-Thread Development Team
+ * Copyright (c) 2006-2023, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -9,7 +9,8 @@
 #ifndef DATAQUEUE_H__
 #define DATAQUEUE_H__
 
-#include <rtthread.h>
+#include <rtdef.h>
+#include <rtconfig.h>
 
 #define RT_DATAQUEUE_EVENT_UNKNOWN   0x00
 #define RT_DATAQUEUE_EVENT_POP       0x01

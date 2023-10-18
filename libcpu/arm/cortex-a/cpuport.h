@@ -10,8 +10,6 @@
 #ifndef  CPUPORT_H__
 #define  CPUPORT_H__
 
-#include <rtthread.h>
-
 /* the exception stack without VFP registers */
 struct rt_hw_exp_stack
 {
@@ -96,5 +94,7 @@ rt_inline void rt_hw_dsb(void)
 {
     __asm volatile ("dsb":::"memory");
 }
+
+void _thread_start(void);
 
 #endif  /*CPUPORT_H__*/

@@ -13,7 +13,7 @@
 #include <rtthread.h>
 #include <board.h>
 
-int rt_hw_cpu_id(void)
+rt_weak int rt_hw_cpu_id(void)
 {
     int cpu_id;
     __asm__ volatile (
@@ -74,7 +74,7 @@ void rt_hw_spin_unlock(rt_hw_spinlock_t *lock)
 /*@{*/
 
 /** shutdown CPU */
-rt_weak void rt_hw_cpu_shutdown()
+void rt_hw_cpu_shutdown(void)
 {
     rt_base_t level;
     rt_kprintf("shutdown...\n");
