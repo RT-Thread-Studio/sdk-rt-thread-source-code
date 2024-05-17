@@ -59,9 +59,6 @@
 struct rt_small_mem_item
 {
     rt_ubase_t              pool_ptr;         /**< small memory object addr */
-#ifdef ARCH_CPU_64BIT
-    rt_uint32_t             resv;
-#endif /* ARCH_CPU_64BIT */
     rt_size_t               next;             /**< next free item */
     rt_size_t               prev;             /**< prev free item */
 #ifdef RT_USING_MEMTRACE
@@ -85,18 +82,12 @@ struct rt_small_mem
     rt_size_t                   mem_size_aligned;       /**< aligned memory size */
 };
 
-#define HEAP_MAGIC 0x1ea0
-
-#ifdef ARCH_CPU_64BIT
-#define MIN_SIZE 24
-#else
-#define MIN_SIZE 12
-#endif /* ARCH_CPU_64BIT */
+#define MIN_SIZE (sizeof(rt_ubase_t) + sizeof(rt_size_t) + sizeof(rt_size_t))
 
 #define MEM_MASK ((~(rt_size_t)0) - 1)
 
-#define MEM_USED()         ((((rt_base_t)(small_mem)) & MEM_MASK) | 0x1)
-#define MEM_FREED()        ((((rt_base_t)(small_mem)) & MEM_MASK) | 0x0)
+#define MEM_USED(_mem)       ((((rt_base_t)(_mem)) & MEM_MASK) | 0x1)
+#define MEM_FREED(_mem)      ((((rt_base_t)(_mem)) & MEM_MASK) | 0x0)
 #define MEM_ISUSED(_mem)   \
                       (((rt_base_t)(((struct rt_small_mem_item *)(_mem))->pool_ptr)) & (~MEM_MASK))
 #define MEM_POOL(_mem)     \
@@ -220,7 +211,7 @@ rt_smem_t rt_smem_init(const char    *name,
 
     /* initialize the start of the heap */
     mem        = (struct rt_small_mem_item *)small_mem->heap_ptr;
-    mem->pool_ptr = MEM_FREED();
+    mem->pool_ptr = MEM_FREED(small_mem);
     mem->next  = small_mem->mem_size_aligned + SIZEOF_STRUCT_MEM;
     mem->prev  = 0;
 #ifdef RT_USING_MEMTRACE
@@ -229,7 +220,7 @@ rt_smem_t rt_smem_init(const char    *name,
 
     /* initialize the end of the heap */
     small_mem->heap_end        = (struct rt_small_mem_item *)&small_mem->heap_ptr[mem->next];
-    small_mem->heap_end->pool_ptr = MEM_USED();
+    small_mem->heap_end->pool_ptr = MEM_USED(small_mem);
     small_mem->heap_end->next  = small_mem->mem_size_aligned + SIZEOF_STRUCT_MEM;
     small_mem->heap_end->prev  = small_mem->mem_size_aligned + SIZEOF_STRUCT_MEM;
 #ifdef RT_USING_MEMTRACE
@@ -290,16 +281,6 @@ void *rt_smem_alloc(rt_smem_t m, rt_size_t size)
     RT_ASSERT(rt_object_get_type(&m->parent) == RT_Object_Class_Memory);
     RT_ASSERT(rt_object_is_systemobject(&m->parent));
 
-    if (size != RT_ALIGN(size, RT_ALIGN_SIZE))
-    {
-        LOG_D("malloc size %d, but align to %d",
-                size, RT_ALIGN(size, RT_ALIGN_SIZE));
-    }
-    else
-    {
-        LOG_D("malloc size %d", size);
-    }
-
     small_mem = (struct rt_small_mem *)m;
     /* alignment size */
     size = RT_ALIGN(size, RT_ALIGN_SIZE);
@@ -343,7 +324,7 @@ void *rt_smem_alloc(rt_smem_t m, rt_size_t size)
 
                 /* create mem2 struct */
                 mem2       = (struct rt_small_mem_item *)&small_mem->heap_ptr[ptr2];
-                mem2->pool_ptr = MEM_FREED();
+                mem2->pool_ptr = MEM_FREED(small_mem);
                 mem2->next = mem->next;
                 mem2->prev = ptr;
 #ifdef RT_USING_MEMTRACE
@@ -375,7 +356,7 @@ void *rt_smem_alloc(rt_smem_t m, rt_size_t size)
                     small_mem->parent.max = small_mem->parent.used;
             }
             /* set small memory object */
-            mem->pool_ptr = MEM_USED();
+            mem->pool_ptr = MEM_USED(small_mem);
 #ifdef RT_USING_MEMTRACE
             if (rt_thread_self())
                 rt_smem_setname(mem, rt_thread_self()->parent.name);
@@ -472,7 +453,7 @@ void *rt_smem_realloc(rt_smem_t m, void *rmem, rt_size_t newsize)
 
         ptr2 = ptr + SIZEOF_STRUCT_MEM + newsize;
         mem2 = (struct rt_small_mem_item *)&small_mem->heap_ptr[ptr2];
-        mem2->pool_ptr = MEM_FREED();
+        mem2->pool_ptr = MEM_FREED(small_mem);
         mem2->next = mem->next;
         mem2->prev = ptr;
 #ifdef RT_USING_MEMTRACE
@@ -540,7 +521,7 @@ void rt_smem_free(void *rmem)
             (rt_ubase_t)(mem->next - ((rt_uint8_t *)mem - small_mem->heap_ptr)));
 
     /* ... and is now unused. */
-    mem->pool_ptr = MEM_FREED();
+    mem->pool_ptr = MEM_FREED(small_mem);
 #ifdef RT_USING_MEMTRACE
     rt_smem_setname(mem, "    ");
 #endif /* RT_USING_MEMTRACE */
@@ -562,7 +543,7 @@ RTM_EXPORT(rt_smem_free);
 #include <finsh.h>
 
 #ifdef RT_USING_MEMTRACE
-int memcheck(int argc, char *argv[])
+static int memcheck(int argc, char *argv[])
 {
     int position;
     rt_base_t level;
@@ -611,7 +592,7 @@ __exit:
 }
 MSH_CMD_EXPORT(memcheck, check memory data);
 
-int memtrace(int argc, char **argv)
+static int memtrace(int argc, char **argv)
 {
     struct rt_small_mem_item *mem;
     struct rt_small_mem *m;

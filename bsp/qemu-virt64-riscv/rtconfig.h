@@ -7,6 +7,7 @@
 /* RT-Thread Kernel */
 
 #define RT_NAME_MAX 24
+#define RT_CPUS_NR 1
 #define RT_ALIGN_SIZE 8
 #define RT_THREAD_PRIORITY_32
 #define RT_THREAD_PRIORITY_MAX 32
@@ -46,15 +47,13 @@
 #define RT_USING_SMALL_MEM_AS_HEAP
 #define RT_USING_MEMTRACE
 #define RT_USING_HEAP
-
-/* Kernel Device Object */
-
 #define RT_USING_DEVICE
 #define RT_USING_DEVICE_OPS
 #define RT_USING_CONSOLE
 #define RT_CONSOLEBUF_SIZE 256
 #define RT_CONSOLE_DEVICE_NAME "uart0"
-#define RT_VER_NUM 0x50002
+#define RT_VER_NUM 0x50100
+#define RT_BACKTRACE_LEVEL_MAX_NR 32
 #define ARCH_CPU_64BIT
 #define RT_USING_CACHE
 #define RT_USING_HW_ATOMIC
@@ -124,7 +123,6 @@
 #define RT_USING_CPUTIME
 #define RT_USING_CPUTIME_RISCV
 #define CPUTIME_TIMER_FREQ 10000000
-#define RT_USING_PIN
 #define RT_USING_NULL
 #define RT_USING_ZERO
 #define RT_USING_RANDOM
@@ -136,6 +134,7 @@
 #define RT_USING_VIRTIO_NET
 #define RT_USING_VIRTIO_CONSOLE
 #define RT_USING_VIRTIO_CONSOLE_PORT_MAX_NR 4
+#define RT_USING_PIN
 #define RT_USING_KTIME
 
 /* Using USB */
@@ -224,6 +223,7 @@
 #define RT_LWIP_ETHTHREAD_MBOX_SIZE 8
 #define LWIP_NETIF_STATUS_CALLBACK 1
 #define LWIP_NETIF_LINK_CALLBACK 1
+#define RT_LWIP_NETIF_NAMESIZE 6
 #define SO_REUSE 1
 #define LWIP_SO_RCVTIMEO 1
 #define LWIP_SO_SNDTIMEO 1
@@ -231,6 +231,9 @@
 #define LWIP_SO_LINGER 0
 #define LWIP_NETIF_LOOPBACK 0
 #define RT_LWIP_USING_PING
+
+/* Memory protection */
+
 
 /* Utilities */
 
@@ -258,6 +261,15 @@
 
 
 /* Wiced WiFi */
+
+
+/* CYW43012 WiFi */
+
+
+/* BL808 WiFi */
+
+
+/* CYW43439 WiFi */
 
 
 /* IoT Cloud */
@@ -301,13 +313,18 @@
 
 /* peripheral libraries and drivers */
 
+/* HAL & SDK Drivers */
+
+/* STM32 HAL & SDK Drivers */
+
+
+/* Kendryte SDK */
+
+
 /* sensors drivers */
 
 
 /* touch drivers */
-
-
-/* Kendryte SDK */
 
 
 /* AI packages */
