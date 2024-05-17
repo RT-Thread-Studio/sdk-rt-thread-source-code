@@ -54,6 +54,10 @@ config ARCH_ARM_CORTEX_M
     bool
     select ARCH_ARM
 
+config ARCH_ARM_CORTEX_R
+    bool
+    select ARCH_ARM
+
 config ARCH_ARM_CORTEX_FPU
     bool
 
@@ -86,6 +90,11 @@ config ARCH_ARM_CORTEX_M7
     select ARCH_ARM_CORTEX_M
     select RT_USING_CPU_FFS
     select RT_USING_CACHE
+
+config ARCH_ARM_CORTEX_M85
+    bool
+    select ARCH_ARM_CORTEX_M
+    select RT_USING_CPU_FFS
     select RT_USING_HW_ATOMIC
 
 config ARCH_ARM_CORTEX_M23
@@ -103,6 +112,10 @@ config ARCH_ARM_CORTEX_R
     bool
     select ARCH_ARM
     select RT_USING_HW_ATOMIC
+
+config ARCH_ARM_CORTEX_R52
+    bool
+    select ARCH_ARM_CORTEX_R
 
 config ARCH_ARM_MMU
     bool
@@ -192,6 +205,7 @@ config ARCH_ARMV8
     bool
     select ARCH_ARM
     select ARCH_ARM_MMU
+    select RT_USING_CPU_FFS
 
 config ARCH_MIPS
     bool
