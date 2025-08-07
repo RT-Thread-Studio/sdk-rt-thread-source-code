@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2023, RT-Thread Development Team
+ * Copyright (c) 2006-2025, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -13,7 +13,7 @@
 
 #include <rthw.h>
 #include <rtdevice.h>
-#include <spi-bit-ops.h>
+#include <dev_spi_bit_ops.h>
 
 /* ra soft spi config */
 struct ra_soft_spi_config

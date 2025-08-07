@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2024, RT-Thread Development Team
+ * Copyright (c) 2006-2024 RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -144,7 +144,7 @@ rt_err_t rt_sched_thread_ready(struct rt_thread *thread)
     return error;
 }
 
-rt_err_t rt_sched_tick_increase(void)
+rt_err_t rt_sched_tick_increase(rt_tick_t tick)
 {
     struct rt_thread *thread;
     rt_sched_lock_level_t slvl;
@@ -153,7 +153,15 @@ rt_err_t rt_sched_tick_increase(void)
 
     rt_sched_lock(&slvl);
 
-    RT_SCHED_PRIV(thread).remaining_tick--;
+    if(RT_SCHED_PRIV(thread).remaining_tick > tick)
+    {
+        RT_SCHED_PRIV(thread).remaining_tick -= tick;
+    }
+    else
+    {
+        RT_SCHED_PRIV(thread).remaining_tick = 0;
+    }
+
     if (RT_SCHED_PRIV(thread).remaining_tick)
     {
         rt_sched_unlock(slvl);
@@ -172,7 +180,7 @@ rt_err_t rt_sched_tick_increase(void)
 /**
  * @brief Update priority of the target thread
  */
-rt_err_t rt_sched_thread_change_priority(struct rt_thread *thread, rt_uint8_t priority)
+static rt_err_t _rt_sched_update_priority(struct rt_thread *thread, rt_uint8_t priority, rt_bool_t update_init_prio)
 {
     RT_ASSERT(priority < RT_THREAD_PRIORITY_MAX);
     RT_SCHED_DEBUG_IS_LOCKED;
@@ -184,6 +192,10 @@ rt_err_t rt_sched_thread_change_priority(struct rt_thread *thread, rt_uint8_t pr
         rt_sched_remove_thread(thread);
 
         /* change thread priority */
+        if (update_init_prio)
+        {
+            RT_SCHED_PRIV(thread).init_priority = priority;
+        }
         RT_SCHED_PRIV(thread).current_priority = priority;
 
         /* recalculate priority attribute */
@@ -201,6 +213,10 @@ rt_err_t rt_sched_thread_change_priority(struct rt_thread *thread, rt_uint8_t pr
     }
     else
     {
+        if (update_init_prio)
+        {
+            RT_SCHED_PRIV(thread).init_priority = priority;
+        }
         RT_SCHED_PRIV(thread).current_priority = priority;
 
         /* recalculate priority attribute */
@@ -214,6 +230,22 @@ rt_err_t rt_sched_thread_change_priority(struct rt_thread *thread, rt_uint8_t pr
     }
 
     return RT_EOK;
+}
+
+/**
+ * @brief Update priority of the target thread
+ */
+rt_err_t rt_sched_thread_change_priority(struct rt_thread *thread, rt_uint8_t priority)
+{
+    return _rt_sched_update_priority(thread, priority, RT_FALSE);
+}
+
+/**
+ * @brief Reset priority of the target thread
+ */
+rt_err_t rt_sched_thread_reset_priority(struct rt_thread *thread, rt_uint8_t priority)
+{
+    return _rt_sched_update_priority(thread, priority, RT_TRUE);
 }
 
 #ifdef RT_USING_OVERFLOW_CHECK
@@ -236,13 +268,13 @@ void rt_scheduler_stack_check(struct rt_thread *thread)
 
 #ifndef RT_USING_HW_STACK_GUARD
 #ifdef ARCH_CPU_STACK_GROWS_UPWARD
-    if (*((rt_uint8_t *)((rt_ubase_t)thread->stack_addr + thread->stack_size - 1)) != '#' ||
+    if (*((rt_uint8_t *)((rt_uintptr_t)thread->stack_addr + thread->stack_size - 1)) != '#' ||
 #else
     if (*((rt_uint8_t *)thread->stack_addr) != '#' ||
 #endif /* ARCH_CPU_STACK_GROWS_UPWARD */
-        (rt_ubase_t)thread->sp <= (rt_ubase_t)thread->stack_addr ||
-        (rt_ubase_t)thread->sp >
-        (rt_ubase_t)thread->stack_addr + (rt_ubase_t)thread->stack_size)
+        (rt_uintptr_t)thread->sp <= (rt_uintptr_t)thread->stack_addr ||
+        (rt_uintptr_t)thread->sp >
+        (rt_uintptr_t)thread->stack_addr + (rt_uintptr_t)thread->stack_size)
     {
         rt_base_t dummy = 1;
 
@@ -253,9 +285,9 @@ void rt_scheduler_stack_check(struct rt_thread *thread)
 #endif /* RT_USING_HW_STACK_GUARD */
 #ifdef ARCH_CPU_STACK_GROWS_UPWARD
 #ifndef RT_USING_HW_STACK_GUARD
-    else if ((rt_ubase_t)thread->sp > ((rt_ubase_t)thread->stack_addr + thread->stack_size))
+    else if ((rt_uintptr_t)thread->sp > ((rt_uintptr_t)thread->stack_addr + thread->stack_size))
 #else
-    if ((rt_ubase_t)thread->sp > ((rt_ubase_t)thread->stack_addr + thread->stack_size))
+    if ((rt_uintptr_t)thread->sp > ((rt_uintptr_t)thread->stack_addr + thread->stack_size))
 #endif
     {
         LOG_W("warning: %s stack is close to the top of stack address.\n",
@@ -263,9 +295,9 @@ void rt_scheduler_stack_check(struct rt_thread *thread)
     }
 #else
 #ifndef RT_USING_HW_STACK_GUARD
-    else if ((rt_ubase_t)thread->sp <= ((rt_ubase_t)thread->stack_addr + 32))
+    else if ((rt_uintptr_t)thread->sp <= ((rt_uintptr_t)thread->stack_addr + 32))
 #else
-    if ((rt_ubase_t)thread->sp <= ((rt_ubase_t)thread->stack_addr + 32))
+    if ((rt_uintptr_t)thread->sp <= ((rt_uintptr_t)thread->stack_addr + 32))
 #endif
     {
         LOG_W("warning: %s stack is close to end of stack address.\n",

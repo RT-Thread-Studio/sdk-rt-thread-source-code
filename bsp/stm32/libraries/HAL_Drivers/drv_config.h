@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2023, RT-Thread Development Team
+ * Copyright (c) 2006-2024 RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -35,6 +35,7 @@ extern "C" {
 #include "f1/sdio_config.h"
 #include "f1/pwm_config.h"
 #include "f1/usbd_config.h"
+#include "f1/i2c_hard_config.h"
 #include "f1/pulse_encoder_config.h"
 #elif  defined(SOC_SERIES_STM32F2)
 #include "f2/dma_config.h"
@@ -122,6 +123,7 @@ extern "C" {
 #include "h7/adc_config.h"
 #include "h7/dac_config.h"
 #include "h7/tim_config.h"
+#include "h7/lptim_config.h"
 #include "h7/sdio_config.h"
 #include "h7/pwm_config.h"
 #include "h7/usbd_config.h"

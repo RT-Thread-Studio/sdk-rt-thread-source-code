@@ -81,6 +81,13 @@ SECTIONS
         PROVIDE(__rt_ofw_data_end = .);
         . = ALIGN(16);
 
+        /* section information for usb usbh_class_info */
+        . = ALIGN(4);
+        __usbh_class_info_start__ = .;
+        KEEP(*(.usbh_class_info))
+        . = ALIGN(4);
+        __usbh_class_info_end__ = .;
+
         PROVIDE(__text_end = .);
     }
 
@@ -111,19 +118,19 @@ SECTIONS
     . = ALIGN(8);
     .ctors :
     {
-        PROVIDE(__ctors_start = .);
+        PROVIDE(__ctors_start__ = .);
         /* new GCC version uses .init_array */
         KEEP(*(SORT(.init_array.*)))
         KEEP(*(.init_array))
-        PROVIDE(__ctors_end = .);
+        PROVIDE(__ctors_end__ = .);
     }
 
     .dtors :
     {
-        PROVIDE(__dtors_start = .);
+        PROVIDE(__dtors_start__ = .);
         KEEP(*(SORT(.dtors.*)))
         KEEP(*(.dtors))
-        PROVIDE(__dtors_end = .);
+        PROVIDE(__dtors_end__ = .);
     }
 
     . = ALIGN(16);

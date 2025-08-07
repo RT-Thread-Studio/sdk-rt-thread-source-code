@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2023, RT-Thread Development Team
+ * Copyright (c) 2006-2024, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -12,7 +12,7 @@
 #include "drv_soft_spi.h"
 #include "drv_config.h"
 
-#if defined(RT_USING_SPI) && defined(RT_USING_SPI_BITOPS) && defined(RT_USING_PIN)
+#if defined(RT_USING_SPI) && defined(RT_USING_SOFT_SPI) && defined(RT_USING_PIN)
 
 //#define DRV_DEBUG
 #define LOG_TAG             "drv.soft_spi"
@@ -156,41 +156,11 @@ void stm32_dir_miso(void *data, rt_int32_t state)
     }
 }
 
-static void stm32_udelay(rt_uint32_t us)
-{
-    rt_uint32_t ticks;
-    rt_uint32_t told, tnow, tcnt = 0;
-    rt_uint32_t reload = SysTick->LOAD;
-
-    ticks = us * reload / (1000000UL / RT_TICK_PER_SECOND);
-    told = SysTick->VAL;
-    while (1)
-    {
-        tnow = SysTick->VAL;
-        if (tnow != told)
-        {
-            if (tnow < told)
-            {
-                tcnt += told - tnow;
-            }
-            else
-            {
-                tcnt += reload - tnow + told;
-            }
-            told = tnow;
-            if (tcnt >= ticks)
-            {
-                break;
-            }
-        }
-    }
-}
-
 static void stm32_pin_init(void)
 {
     rt_size_t obj_num = sizeof(spi_obj) / sizeof(struct stm32_soft_spi);
 
-    for(rt_size_t i; i < obj_num; i++)
+    for(rt_size_t i = 0; i < obj_num; i++)
     {
         stm32_spi_gpio_init(&spi_obj[i]);
     }
@@ -209,7 +179,7 @@ static struct rt_spi_bit_ops stm32_soft_spi_ops =
         .get_miso = stm32_get_miso,
         .dir_mosi = stm32_dir_mosi,
         .dir_miso = stm32_dir_miso,
-        .udelay = stm32_udelay,
+        .udelay = rt_hw_us_delay,
         .delay_us = 1,
 };
 
@@ -233,4 +203,4 @@ int rt_hw_softspi_init(void)
 }
 INIT_BOARD_EXPORT(rt_hw_softspi_init);
 
-#endif /* defined(RT_USING_SPI) && defined(RT_USING_SPI_BITOPS) && defined(RT_USING_PIN) */
+#endif /* defined(RT_USING_SPI) && defined(RT_USING_SOFT_SPI) && defined(RT_USING_PIN) */

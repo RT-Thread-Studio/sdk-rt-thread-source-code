@@ -32,6 +32,7 @@
  * 2023-10-17     ChuShicheng  Modify the timing of clearing RT_THREAD_STAT_YIELD flag bits
  */
 
+#define __RT_IPC_SOURCE__
 #include <rtthread.h>
 #include <rthw.h>
 
@@ -46,9 +47,8 @@ rt_uint32_t rt_thread_ready_priority_group;
 rt_uint8_t rt_thread_ready_table[32];
 #endif /* RT_THREAD_PRIORITY_MAX > 32 */
 
-extern volatile rt_uint8_t rt_interrupt_nest;
+extern volatile rt_atomic_t rt_interrupt_nest;
 static rt_int16_t rt_scheduler_lock_nest;
-struct rt_thread *rt_current_thread = RT_NULL;
 rt_uint8_t rt_current_priority;
 
 #if defined(RT_USING_HOOK) && defined(RT_HOOK_USING_FUNC_PTR)
@@ -56,7 +56,7 @@ static void (*rt_scheduler_hook)(struct rt_thread *from, struct rt_thread *to);
 static void (*rt_scheduler_switch_hook)(struct rt_thread *tid);
 
 /**
- * @addtogroup Hook
+ * @addtogroup group_Hook
  */
 
 /**@{*/
@@ -175,20 +175,20 @@ void rt_system_scheduler_start(void)
 
     to_thread = _scheduler_get_highest_priority_thread(&highest_ready_priority);
 
-    rt_current_thread = to_thread;
+    rt_cpu_self()->current_thread = to_thread;
 
     rt_sched_remove_thread(to_thread);
     RT_SCHED_CTX(to_thread).stat = RT_THREAD_RUNNING;
 
     /* switch to new thread */
 
-    rt_hw_context_switch_to((rt_ubase_t)&to_thread->sp);
+    rt_hw_context_switch_to((rt_uintptr_t)&to_thread->sp);
 
     /* never come back */
 }
 
 /**
- * @addtogroup Thread
+ * @addtogroup group_Thread
  * @cond
  */
 
@@ -203,6 +203,8 @@ void rt_schedule(void)
     rt_base_t level;
     struct rt_thread *to_thread;
     struct rt_thread *from_thread;
+    /* using local variable to avoid unecessary function call */
+    struct rt_thread *curr_thread = rt_thread_self();
 
     /* disable interrupt */
     level = rt_hw_interrupt_disable();
@@ -219,15 +221,16 @@ void rt_schedule(void)
 
             to_thread = _scheduler_get_highest_priority_thread(&highest_ready_priority);
 
-            if ((RT_SCHED_CTX(rt_current_thread).stat & RT_THREAD_STAT_MASK) == RT_THREAD_RUNNING)
+            if ((RT_SCHED_CTX(curr_thread).stat & RT_THREAD_STAT_MASK) == RT_THREAD_RUNNING)
             {
-                if (RT_SCHED_PRIV(rt_current_thread).current_priority < highest_ready_priority)
+                if (RT_SCHED_PRIV(curr_thread).current_priority < highest_ready_priority)
                 {
-                    to_thread = rt_current_thread;
+                    to_thread = curr_thread;
                 }
-                else if (RT_SCHED_PRIV(rt_current_thread).current_priority == highest_ready_priority && (RT_SCHED_CTX(rt_current_thread).stat & RT_THREAD_STAT_YIELD_MASK) == 0)
+                else if (RT_SCHED_PRIV(curr_thread).current_priority == highest_ready_priority
+                         && (RT_SCHED_CTX(curr_thread).stat & RT_THREAD_STAT_YIELD_MASK) == 0)
                 {
-                    to_thread = rt_current_thread;
+                    to_thread = curr_thread;
                 }
                 else
                 {
@@ -235,12 +238,12 @@ void rt_schedule(void)
                 }
             }
 
-            if (to_thread != rt_current_thread)
+            if (to_thread != curr_thread)
             {
                 /* if the destination thread is not the same as current thread */
                 rt_current_priority = (rt_uint8_t)highest_ready_priority;
-                from_thread         = rt_current_thread;
-                rt_current_thread   = to_thread;
+                from_thread                   = curr_thread;
+                rt_cpu_self()->current_thread = to_thread;
 
                 RT_OBJECT_HOOK_CALL(rt_scheduler_hook, (from_thread, to_thread));
 
@@ -273,8 +276,8 @@ void rt_schedule(void)
 
                     RT_OBJECT_HOOK_CALL(rt_scheduler_switch_hook, (from_thread));
 
-                    rt_hw_context_switch((rt_ubase_t)&from_thread->sp,
-                            (rt_ubase_t)&to_thread->sp);
+                    rt_hw_context_switch((rt_uintptr_t)&from_thread->sp,
+                            (rt_uintptr_t)&to_thread->sp);
 
                     /* enable interrupt */
                     rt_hw_interrupt_enable(level);
@@ -282,11 +285,11 @@ void rt_schedule(void)
 #ifdef RT_USING_SIGNALS
                     /* check stat of thread for signal */
                     level = rt_hw_interrupt_disable();
-                    if (RT_SCHED_CTX(rt_current_thread).stat & RT_THREAD_STAT_SIGNAL_PENDING)
+                    if (RT_SCHED_CTX(curr_thread).stat & RT_THREAD_STAT_SIGNAL_PENDING)
                     {
                         extern void rt_thread_handle_sig(rt_bool_t clean_state);
 
-                        RT_SCHED_CTX(rt_current_thread).stat &= ~RT_THREAD_STAT_SIGNAL_PENDING;
+                        RT_SCHED_CTX(curr_thread).stat &= ~RT_THREAD_STAT_SIGNAL_PENDING;
 
                         rt_hw_interrupt_enable(level);
 
@@ -304,14 +307,14 @@ void rt_schedule(void)
                 {
                     LOG_D("switch in interrupt");
 
-                    rt_hw_context_switch_interrupt((rt_ubase_t)&from_thread->sp,
-                            (rt_ubase_t)&to_thread->sp, from_thread, to_thread);
+                    rt_hw_context_switch_interrupt((rt_uintptr_t)&from_thread->sp,
+                            (rt_uintptr_t)&to_thread->sp, from_thread, to_thread);
                 }
             }
             else
             {
-                rt_sched_remove_thread(rt_current_thread);
-                RT_SCHED_CTX(rt_current_thread).stat = RT_THREAD_RUNNING | (RT_SCHED_CTX(rt_current_thread).stat & ~RT_THREAD_STAT_MASK);
+                rt_sched_remove_thread(curr_thread);
+                RT_SCHED_CTX(curr_thread).stat = RT_THREAD_RUNNING | (RT_SCHED_CTX(curr_thread).stat & ~RT_THREAD_STAT_MASK);
             }
         }
     }
@@ -451,7 +454,7 @@ void rt_sched_remove_thread(struct rt_thread *thread)
     rt_hw_interrupt_enable(level);
 }
 
-#ifdef RT_USING_DEBUG
+#ifdef RT_DEBUGING_CRITICAL
 
 static volatile int _critical_error_occurred = 0;
 
@@ -482,14 +485,14 @@ void rt_exit_critical_safe(rt_base_t critical_level)
     rt_exit_critical();
 }
 
-#else
+#else /* !RT_DEBUGING_CRITICAL */
 
 void rt_exit_critical_safe(rt_base_t critical_level)
 {
     rt_exit_critical();
 }
 
-#endif
+#endif/* RT_DEBUGING_CRITICAL */
 RTM_EXPORT(rt_exit_critical_safe);
 
 /**

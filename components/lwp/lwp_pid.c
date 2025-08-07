@@ -69,11 +69,28 @@ static int lwp_pid_ary_alloced = 0;
 static struct lwp_avl_struct *lwp_pid_root = RT_NULL;
 static pid_t current_pid = 0;
 static struct rt_mutex pid_mtx;
+static struct rt_wqueue _pid_emptyq;
 
 int lwp_pid_init(void)
 {
+    rt_wqueue_init(&_pid_emptyq);
     rt_mutex_init(&pid_mtx, "pidmtx", RT_IPC_FLAG_PRIO);
     return 0;
+}
+
+int lwp_pid_wait_for_empty(int wait_flags, rt_tick_t to)
+{
+    int error;
+
+    if (wait_flags == RT_INTERRUPTIBLE)
+    {
+        error = rt_wqueue_wait_interruptible(&_pid_emptyq, 0, to);
+    }
+    else
+    {
+        error = rt_wqueue_wait_killable(&_pid_emptyq, 0, to);
+    }
+    return error;
 }
 
 void lwp_pid_lock_take(void)
@@ -83,6 +100,7 @@ void lwp_pid_lock_take(void)
     rc = lwp_mutex_take_safe(&pid_mtx, RT_WAITING_FOREVER, 0);
     /* should never failed */
     RT_ASSERT(rc == RT_EOK);
+    RT_UNUSED(rc);
 }
 
 void lwp_pid_lock_release(void)
@@ -90,6 +108,35 @@ void lwp_pid_lock_release(void)
     /* should never failed */
     if (lwp_mutex_release_safe(&pid_mtx) != RT_EOK)
         RT_ASSERT(0);
+}
+
+struct pid_foreach_param
+{
+    int (*cb)(pid_t pid, void *data);
+    void *data;
+};
+
+static int _before_cb(struct lwp_avl_struct *node, void *data)
+{
+    struct pid_foreach_param *param = data;
+    pid_t pid = node->avl_key;
+    return param->cb(pid, param->data);
+}
+
+int lwp_pid_for_each(int (*cb)(pid_t pid, void *data), void *data)
+{
+    int error;
+    struct pid_foreach_param buf =
+    {
+        .cb = cb,
+        .data = data,
+    };
+
+    lwp_pid_lock_take();
+    error = lwp_avl_traversal(lwp_pid_root, _before_cb, &buf);
+    lwp_pid_lock_release();
+
+    return error;
 }
 
 struct lwp_avl_struct *lwp_get_pid_ary(void)
@@ -181,7 +228,15 @@ void lwp_pid_put(struct rt_lwp *lwp)
 
     lwp_pid_lock_take();
     lwp_pid_put_locked(lwp->pid);
-    lwp_pid_lock_release();
+    if (lwp_pid_root == AVL_EMPTY)
+    {
+        rt_wqueue_wakeup_all(&_pid_emptyq, RT_NULL);
+        /* refuse any new pid allocation now */
+    }
+    else
+    {
+        lwp_pid_lock_release();
+    }
 
     /* reset pid field */
     lwp->pid = 0;
@@ -758,7 +813,7 @@ pid_t lwp_name2pid(const char *name)
 
         if (lwp)
         {
-            process_name = strrchr(lwp->cmd, '/');
+            process_name = strrchr(lwp->exe_file, '/');
             process_name = process_name? process_name + 1: lwp->cmd;
             if (!rt_strncmp(name, process_name, RT_NAME_MAX))
             {
@@ -1166,11 +1221,11 @@ static void print_thread_info(struct rt_thread* thread, int maxlen)
 
 #ifdef RT_USING_SMP
     if (RT_SCHED_CTX(thread).oncpu != RT_CPU_DETACHED)
-        rt_kprintf("%-*.*s %3d %3d ", maxlen, RT_NAME_MAX, thread->parent.name, RT_SCHED_CTX(thread).oncpu, RT_SCHED_PRIV(thread).current_priority);
+        rt_kprintf("%3d %3d ", RT_SCHED_CTX(thread).oncpu, RT_SCHED_PRIV(thread).current_priority);
     else
-        rt_kprintf("%-*.*s N/A %3d ", maxlen, RT_NAME_MAX, thread->parent.name, RT_SCHED_PRIV(thread).current_priority);
+        rt_kprintf("N/A %3d ", RT_SCHED_PRIV(thread).current_priority);
 #else
-    rt_kprintf("%-*.*s %3d ", maxlen, RT_NAME_MAX, thread->parent.name, RT_SCHED_PRIV(thread).current_priority);
+    rt_kprintf("%3d ", RT_SCHED_PRIV(thread).current_priority);
 #endif /*RT_USING_SMP*/
 
     stat = (RT_SCHED_CTX(thread).stat & RT_THREAD_STAT_MASK);
@@ -1194,7 +1249,7 @@ static void print_thread_info(struct rt_thread* thread, int maxlen)
     ptr = (rt_uint8_t *)thread->stack_addr;
     while (*ptr == '#')ptr++;
 
-    rt_kprintf(" 0x%08x 0x%08x    %02d%%   0x%08x %03d\n",
+    rt_kprintf(" 0x%08x 0x%08x    %02d%%   0x%08x %03d",
             (thread->stack_size + (rt_uint32_t)(rt_size_t)thread->stack_addr - (rt_uint32_t)(rt_size_t)thread->sp),
             thread->stack_size,
             (thread->stack_size + (rt_uint32_t)(rt_size_t)thread->stack_addr - (rt_uint32_t)(rt_size_t)ptr) * 100
@@ -1202,6 +1257,7 @@ static void print_thread_info(struct rt_thread* thread, int maxlen)
             RT_SCHED_PRIV(thread).remaining_tick,
             thread->error);
 #endif
+    rt_kprintf("   %-.*s\n",rt_strlen(thread->parent.name), thread->parent.name);
 }
 
 long list_process(void)
@@ -1218,13 +1274,13 @@ long list_process(void)
 
     maxlen = RT_NAME_MAX;
 #ifdef RT_USING_SMP
-    rt_kprintf("%-*.s %-*.s %-*.s cpu pri  status      sp     stack size max used left tick  error\n", 4, "PID", maxlen, "CMD", maxlen, item_title);
-    object_split(4);rt_kprintf(" ");object_split(maxlen);rt_kprintf(" ");object_split(maxlen);rt_kprintf(" ");
-    rt_kprintf(                  "--- ---  ------- ---------- ----------  ------  ---------- ---\n");
+    rt_kprintf("%-*.s %-*.s %-*.s cpu pri  status      sp     stack size max used left tick  error %-*.s\n", 4, "PID", 4, "TID", maxlen, item_title, maxlen, "cmd");
+    object_split(4);rt_kprintf(" ");object_split(4);rt_kprintf(" ");object_split(maxlen);rt_kprintf(" ");
+    rt_kprintf(                  "--- ---  ------- ---------- ---------- -------- ---------- -----");rt_kprintf(" ");object_split(maxlen);rt_kprintf("\n");
 #else
-    rt_kprintf("%-*.s %-*.s %-*.s pri  status      sp     stack size max used left tick  error\n", 4, "PID", maxlen, "CMD", maxlen, item_title);
-    object_split(4);rt_kprintf(" ");object_split(maxlen);rt_kprintf(" ");object_split(maxlen);rt_kprintf(" ");
-    rt_kprintf(                  "---  ------- ---------- ----------  ------  ---------- ---\n");
+    rt_kprintf("%-*.s %-*.s %-*.s pri  status      sp     stack size max used left tick  error\n", 4, "PID", 4, "TID", maxlen, item_title, maxlen, "cmd");
+    object_split(4);rt_kprintf(" ");object_split(4);rt_kprintf(" ");object_split(maxlen);rt_kprintf(" ");
+    rt_kprintf(                  "---  ------- ---------- ---------- -------- ---------- -----");rt_kprintf(" ");object_split(maxlen);rt_kprintf("\n");
 #endif /*RT_USING_SMP*/
 
     count = rt_object_get_length(RT_Object_Class_Thread);
@@ -1256,7 +1312,7 @@ long list_process(void)
 
                     if (th.lwp == RT_NULL)
                     {
-                        rt_kprintf("     %-*.*s ", maxlen, RT_NAME_MAX, "kernel");
+                        rt_kprintf("          %-*.*s ", maxlen, RT_NAME_MAX, "kernel");
                         print_thread_info(&th, maxlen);
                     }
                 }
@@ -1275,7 +1331,7 @@ long list_process(void)
             for (node = list->next; node != list; node = node->next)
             {
                 thread = rt_list_entry(node, struct rt_thread, sibling);
-                rt_kprintf("%4d %-*.*s ", lwp_to_pid(lwp), maxlen, RT_NAME_MAX, lwp->cmd);
+                rt_kprintf("%4d %4d %-*.*s ", lwp_to_pid(lwp), thread->tid, maxlen, RT_NAME_MAX, lwp->cmd);
                 print_thread_info(thread, maxlen);
             }
         }
@@ -1508,6 +1564,7 @@ static void _notify_parent(rt_lwp_t lwp)
 
 static void _resr_cleanup(struct rt_lwp *lwp)
 {
+    int need_cleanup_pid = RT_FALSE;
     lwp_jobctrl_on_exit(lwp);
 
     LWP_LOCK(lwp);
@@ -1577,7 +1634,7 @@ static void _resr_cleanup(struct rt_lwp *lwp)
          * if process is orphan, it doesn't have parent to do the recycling.
          * Otherwise, its parent had setup a flag to mask out recycling event
          */
-        lwp_pid_put(lwp);
+        need_cleanup_pid = RT_TRUE;
     }
 
     LWP_LOCK(lwp);
@@ -1597,37 +1654,32 @@ static void _resr_cleanup(struct rt_lwp *lwp)
     {
         LWP_UNLOCK(lwp);
     }
+
+    if (need_cleanup_pid)
+    {
+        lwp_pid_put(lwp);
+    }
 }
 
-static int _lwp_setaffinity(pid_t pid, int cpu)
+static int _lwp_setaffinity(int tid, int cpu)
 {
-    struct rt_lwp *lwp;
+    rt_thread_t thread;
     int ret = -1;
 
-    lwp_pid_lock_take();
-    lwp = lwp_from_pid_locked(pid);
+    thread = lwp_tid_get_thread_and_inc_ref(tid);
 
-    if (lwp)
+    if (thread)
     {
 #ifdef RT_USING_SMP
-        rt_list_t *list;
-
-        lwp->bind_cpu = cpu;
-        for (list = lwp->t_grp.next; list != &lwp->t_grp; list = list->next)
-        {
-            rt_thread_t thread;
-
-            thread = rt_list_entry(list, struct rt_thread, sibling);
-            rt_thread_control(thread, RT_THREAD_CTRL_BIND_CPU, (void *)(rt_size_t)cpu);
-        }
+        rt_thread_control(thread, RT_THREAD_CTRL_BIND_CPU, (void *)(rt_ubase_t)cpu);
 #endif
         ret = 0;
     }
-    lwp_pid_lock_release();
+    lwp_tid_dec_ref(thread);
     return ret;
 }
 
-int lwp_setaffinity(pid_t pid, int cpu)
+int lwp_setaffinity(int tid, int cpu)
 {
     int ret;
 
@@ -1637,7 +1689,7 @@ int lwp_setaffinity(pid_t pid, int cpu)
         cpu = RT_CPUS_NR;
     }
 #endif
-    ret = _lwp_setaffinity(pid, cpu);
+    ret = _lwp_setaffinity(tid, cpu);
     return ret;
 }
 

@@ -1,12 +1,5 @@
 menu "Hardware Drivers Config"
 
-config SOC_STM32L431RC
-    bool
-    select SOC_SERIES_STM32L4
-    select RT_USING_COMPONENTS_INIT
-    select RT_USING_USER_MAIN
-    default y
-
 menu "Onboard Peripheral Drivers"
 
 endmenu
@@ -23,6 +16,11 @@ menu "On-chip Peripheral Drivers"
         default y
         select RT_USING_SERIAL
         if BSP_USING_UART
+            config BSP_STM32_UART_V1_TX_TIMEOUT
+                int "UART TX timeout"
+                default 2000
+                depends on RT_USING_SERIAL_V1
+                
              config BSP_USING_UART1
                 bool "Enable UART1(External Debug)"
                 default n
@@ -43,7 +41,7 @@ menu "On-chip Peripheral Drivers"
                 depends on BSP_USING_UART1 && RT_SERIAL_USING_DMA
                 default n
         endif
-    
+
     menuconfig BSP_USING_ADC
         bool "Enable ADC"
         default n
@@ -94,19 +92,19 @@ menu "On-chip Peripheral Drivers"
                 bool "Enable SPI3 BUS(WAN Interface)"
                 default n
         endif
-    
+
     config BSP_USING_QSPI_FLASH
         bool "Enable QSPI FLASH (NAND Flash 8MB)"
         select BSP_USING_QSPI
         select RT_USING_SFUD
         select RT_SFUD_USING_SFDP
-        default n 
+        default n
 
     config BSP_USING_SDCARD
         bool "Enable SDCARD (sdio)"
         select BSP_USING_SDIO
         default n
-    
+
     menuconfig BSP_USING_I2C1
         bool "Enable I2C1 BUS (software simulation)"
         default n
@@ -124,7 +122,7 @@ menu "On-chip Peripheral Drivers"
                 default 25
         endif
 
-    source "../libraries/HAL_Drivers/drivers/Kconfig"
+    source "$(BSP_DIR)/../libraries/HAL_Drivers/drivers/Kconfig"
 
 endmenu
 

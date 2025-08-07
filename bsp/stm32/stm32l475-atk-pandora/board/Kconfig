@@ -46,14 +46,32 @@ menu "Onboard Peripheral Drivers"
             select BSP_USING_SPI3
             select BSP_SPI3_TX_USING_DMA
             select BSP_USING_PWM4_CH2
-            select PKG_USING_ARDUINO_ADAFRUIT_ST7735
             depends on !BSP_USING_SPI_LCD
             default n
 
-        config BSP_USING_ARDUINO_ST7789_DEMO
-            bool "Enable Arduino LCD (ST7789) library demo"
-            depends on BSP_USING_ARDUINO_ST7789
-            default n
+        if BSP_USING_ARDUINO_ST7789
+            choice
+                prompt "Arduino GUI Framework"
+
+                config BSP_USING_ARDUINO_ST7789_ADAFRUIT_GFX
+                    bool "Adafruit GFX"
+                    select PKG_USING_ARDUINO_ADAFRUIT_ST7735
+
+                config BSP_USING_ARDUINO_ST7789_TFT_ESPI
+                    bool "TFT eSPI"
+                    select PKG_USING_ARDUINO_TFT_ESPI
+            endchoice
+
+            config BSP_USING_ARDUINO_ST7789_ADAFRUIT_GFX_DEMO
+                bool "Enable ST7789 Adafruit demo"
+                depends on BSP_USING_ARDUINO_ST7789_ADAFRUIT_GFX
+                default n
+
+            config BSP_USING_ARDUINO_ST7789_TFT_ESPI_DEMO
+                bool "Enable ST7789 TFT eSPI demo"
+                depends on BSP_USING_ARDUINO_ST7789_TFT_ESPI
+                default n
+        endif
 
         config BSP_USING_ARDUINO_AHT10
             bool "Enable Arduino AHT10 sensor library"
@@ -269,6 +287,11 @@ menu "On-chip Peripheral Drivers"
         default y
         select RT_USING_SERIAL
         if BSP_USING_UART
+            config BSP_STM32_UART_V1_TX_TIMEOUT
+                int "UART TX timeout"
+                default 2000
+                depends on RT_USING_SERIAL_V1
+                
             menuconfig BSP_USING_UART1
                 bool "Enable UART1 (Debugger)"
                 default y
@@ -294,6 +317,12 @@ menu "On-chip Peripheral Drivers"
                         range 0 65535
                         depends on RT_USING_SERIAL_V2
                         default 0
+
+                    config BSP_UART1_DMA_PING_BUFSIZE
+                        int "Set UART1 RX DMA ping-pong buffer size"
+                        range 32 65535
+                        depends on RT_USING_SERIAL_V2 && BSP_UART1_RX_USING_DMA
+                        default 64                         
                 endif
 
             menuconfig BSP_USING_UART2
@@ -321,6 +350,12 @@ menu "On-chip Peripheral Drivers"
                         range 0 65535
                         depends on RT_USING_SERIAL_V2
                         default 256
+
+                    config BSP_UART2_DMA_PING_BUFSIZE
+                        int "Set UART2 RX DMA ping-pong buffer size"
+                        range 32 65535
+                        depends on RT_USING_SERIAL_V2 && BSP_UART2_RX_USING_DMA
+                        default 64                        
                 endif
         endif
 
@@ -572,7 +607,7 @@ menu "On-chip Peripheral Drivers"
             BSP_USING_STM32_SDIO use drv_sdio_adapter.c,and
             BSP_USING_SDIO use drv_sdio.c
 
-    source "$BSP_DIR/../libraries/HAL_Drivers/drivers/Kconfig"
+    source "$(BSP_DIR)/../libraries/HAL_Drivers/drivers/Kconfig"
 
 endmenu
 
