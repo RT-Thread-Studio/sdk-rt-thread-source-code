@@ -1,12 +1,5 @@
 menu "Hardware Drivers Config"
 
-config SOC_STM32MP157A
-    bool
-    select SOC_SERIES_STM32MP1
-    select RT_USING_COMPONENTS_INIT
-    select RT_USING_USER_MAIN
-    default y
-
 menu "Onboard Peripheral Drivers"
 
     config BSP_USING_STLINK_TO_USART
@@ -164,6 +157,11 @@ menu "On-chip Peripheral Drivers"
         select RT_USING_SERIAL
         default y
         if BSP_USING_UART
+            config BSP_STM32_UART_V1_TX_TIMEOUT
+                int "UART TX timeout"
+                default 2000
+                depends on RT_USING_SERIAL_V1
+
             config BSP_USING_UART3
                 bool "Enable UART3"
                 default n
@@ -328,7 +326,7 @@ menu "On-chip Peripheral Drivers"
             default n
     endif
 
- source "$BSP_DIR/../libraries/HAL_Drivers/drivers/Kconfig"
+ source "$(BSP_DIR)/../libraries/HAL_Drivers/drivers/Kconfig"
 
 endmenu
 

@@ -25,11 +25,15 @@
  * 2022-08-30     Yunjie       make rt_vsnprintf adapt to ti c28x (16bit int)
  * 2023-02-02     Bernard      add Smart ID for logo version show
  * 2023-10-16     Shell        Add hook point for rt_malloc services
+ * 2023-10-21     Shell        support the common backtrace API which is arch-independent
  * 2023-12-10     xqyjlj       perf rt_hw_interrupt_disable/enable, fix memheap lock
  * 2024-03-10     Meco Man     move std libc related functions to rtklibc
  */
 
 #include <rtthread.h>
+
+/* include rt_hw_backtrace macro defined in cpuport.h */
+#define RT_HW_INCLUDE_CPUPORT
 #include <rthw.h>
 
 #define DBG_TAG           "kernel.service"
@@ -50,12 +54,9 @@
 #endif
 
 /**
- * @addtogroup KernelService
+ * @addtogroup group_KernelService
  * @{
  */
-
-/* global errno in RT-Thread */
-static volatile int __rt_errno;
 
 #if defined(RT_USING_DEVICE) && defined(RT_USING_CONSOLE)
 static rt_device_t _console_device = RT_NULL;
@@ -77,18 +78,42 @@ rt_weak void rt_hw_cpu_reset(void)
 
 rt_weak void rt_hw_cpu_shutdown(void)
 {
-    rt_base_t level;
     LOG_I("CPU shutdown...");
     LOG_W("Using default rt_hw_cpu_shutdown()."
-        "Please consider implementing rt_hw_cpu_reset() in another file.");
-    level = rt_hw_interrupt_disable();
-    while (level)
-    {
-        RT_ASSERT(RT_NULL);
-    }
+        "Please consider implementing rt_hw_cpu_shutdown() in another file.");
+    rt_hw_interrupt_disable();
+    RT_ASSERT(0);
     return;
 }
 
+/**
+ * @note can be overridden by cpuport.h which is defined by a specific arch
+ */
+#ifndef RT_HW_BACKTRACE_FRAME_GET_SELF
+
+#ifdef __GNUC__
+    #define RT_HW_BACKTRACE_FRAME_GET_SELF(frame) do {          \
+        (frame)->fp = (rt_uintptr_t)__builtin_frame_address(0U);   \
+        (frame)->pc = ({__label__ pc; pc: (rt_uintptr_t)&&pc;});   \
+    } while (0)
+
+#else
+    #define RT_HW_BACKTRACE_FRAME_GET_SELF(frame) do {  \
+        (frame)->fp = 0;                                \
+        (frame)->pc = 0;                                \
+    } while (0)
+
+#endif /* __GNUC__ */
+
+#endif /* RT_HW_BACKTRACE_FRAME_GET_SELF */
+
+/**
+ * @brief Get the inner most frame of target thread
+ *
+ * @param thread the thread which frame belongs to
+ * @param frame the specified frame to be unwound
+ * @return rt_err_t 0 is succeed, otherwise a failure
+ */
 rt_weak rt_err_t rt_hw_backtrace_frame_get(rt_thread_t thread, struct rt_hw_backtrace_frame *frame)
 {
     RT_UNUSED(thread);
@@ -98,6 +123,13 @@ rt_weak rt_err_t rt_hw_backtrace_frame_get(rt_thread_t thread, struct rt_hw_back
     return -RT_ENOSYS;
 }
 
+/**
+ * @brief Unwind the target frame
+ *
+ * @param thread the thread which frame belongs to
+ * @param frame the specified frame to be unwound
+ * @return rt_err_t 0 is succeed, otherwise a failure
+ */
 rt_weak rt_err_t rt_hw_backtrace_frame_unwind(rt_thread_t thread, struct rt_hw_backtrace_frame *frame)
 {
     RT_UNUSED(thread);
@@ -111,133 +143,6 @@ rt_weak const char *rt_hw_cpu_arch(void)
 {
     return "unknown";
 }
-
-struct _errno_str_t
-{
-    rt_err_t error;
-    const char *str;
-};
-
-static struct _errno_str_t  rt_errno_strs[] =
-{
-    {RT_EOK     , "OK     "},
-    {RT_ERROR   , "ERROR  "},
-    {RT_ETIMEOUT, "ETIMOUT"},
-    {RT_EFULL   , "ERSFULL"},
-    {RT_EEMPTY  , "ERSEPTY"},
-    {RT_ENOMEM  , "ENOMEM "},
-    {RT_ENOSYS  , "ENOSYS "},
-    {RT_EBUSY   , "EBUSY  "},
-    {RT_EIO     , "EIO    "},
-    {RT_EINTR   , "EINTRPT"},
-    {RT_EINVAL  , "EINVAL "},
-    {RT_ENOENT  , "ENOENT "},
-    {RT_ENOSPC  , "ENOSPC "},
-    {RT_EPERM   , "EPERM  "},
-    {RT_ETRAP   , "ETRAP  "},
-};
-
-/**
- * @brief This function return a pointer to a string that contains the
- * message of error.
- *
- * @param error the errorno code
- * @return a point to error message string
- */
-const char *rt_strerror(rt_err_t error)
-{
-    int i = 0;
-
-    if (error < 0)
-        error = -error;
-
-    for (i = 0; i < sizeof(rt_errno_strs) / sizeof(rt_errno_strs[0]); i++)
-    {
-        if (rt_errno_strs[i].error == error)
-            return rt_errno_strs[i].str;
-    }
-
-    return "EUNKNOW";
-}
-RTM_EXPORT(rt_strerror);
-
-/**
- * @brief This function gets the global errno for the current thread.
- *
- * @return errno
- */
-rt_err_t rt_get_errno(void)
-{
-    rt_thread_t tid = RT_NULL;
-
-    if (rt_interrupt_get_nest() != 0)
-    {
-        /* it's in interrupt context */
-        return __rt_errno;
-    }
-
-    tid = rt_thread_self();
-    if (tid == RT_NULL)
-    {
-        return __rt_errno;
-    }
-
-    return tid->error;
-}
-RTM_EXPORT(rt_get_errno);
-
-/**
- * @brief This function sets the global errno for the current thread.
- *
- * @param error is the errno shall be set.
- */
-void rt_set_errno(rt_err_t error)
-{
-    rt_thread_t tid = RT_NULL;
-
-    if (rt_interrupt_get_nest() != 0)
-    {
-        /* it's in interrupt context */
-        __rt_errno = error;
-
-        return;
-    }
-
-    tid = rt_thread_self();
-    if (tid == RT_NULL)
-    {
-        __rt_errno = error;
-
-        return;
-    }
-
-    tid->error = error;
-}
-RTM_EXPORT(rt_set_errno);
-
-/**
- * @brief This function returns the address of the current thread errno.
- *
- * @return The errno address.
- */
-int *_rt_errno(void)
-{
-    rt_thread_t tid = RT_NULL;
-
-    if (rt_interrupt_get_nest() != 0)
-    {
-        return (int *)&__rt_errno;
-    }
-
-    tid = rt_thread_self();
-    if (tid != RT_NULL)
-    {
-        return (int *) & (tid->error);
-    }
-
-    return (int *)&__rt_errno;
-}
-RTM_EXPORT(_rt_errno);
 
 /**
  * @brief This function will show the version of rt-thread rtos
@@ -282,23 +187,15 @@ RTM_EXPORT(rt_console_get_device);
  */
 rt_device_t rt_console_set_device(const char *name)
 {
-    rt_device_t new_device, old_device;
+    rt_device_t old_device = _console_device;
+    rt_device_t new_device = rt_device_find(name);
 
-    /* save old device */
-    old_device = _console_device;
-
-    /* find new console device */
-    new_device = rt_device_find(name);
-
-    /* check whether it's a same device */
-    if (new_device == old_device) return RT_NULL;
-
-    if (new_device != RT_NULL)
+    if (new_device != RT_NULL && new_device != old_device)
     {
-        if (_console_device != RT_NULL)
+        if (old_device != RT_NULL)
         {
             /* close old console device */
-            rt_device_close(_console_device);
+            rt_device_close(old_device);
         }
 
         /* set new console device */
@@ -414,20 +311,23 @@ static void _console_release(void)
  */
 static void _kputs(const char *str, long len)
 {
-    RT_UNUSED(len);
+#ifdef RT_USING_DEVICE
+    rt_device_t console_device = rt_console_get_device();
+#endif /* RT_USING_DEVICE */
 
     CONSOLE_TAKE;
 
 #ifdef RT_USING_DEVICE
-    if (_console_device == RT_NULL)
+    if (console_device == RT_NULL)
     {
         rt_hw_console_output(str);
     }
     else
     {
-        rt_device_write(_console_device, 0, str, len);
+        rt_device_write(console_device, 0, str, len);
     }
 #else
+    RT_UNUSED(len);
     rt_hw_console_output(str);
 #endif /* RT_USING_DEVICE */
 
@@ -486,36 +386,43 @@ rt_weak int rt_kprintf(const char *fmt, ...)
 RTM_EXPORT(rt_kprintf);
 #endif /* RT_USING_CONSOLE */
 
-#ifdef __GNUC__
+/**
+ * @brief Print backtrace of current thread to system console device
+ *
+ * @return rt_err_t 0 is success, otherwise a failure
+ */
 rt_weak rt_err_t rt_backtrace(void)
 {
-    struct rt_hw_backtrace_frame frame = {
-        .fp = (rt_base_t)__builtin_frame_address(0U),
-        .pc = ({__label__ pc; pc: (rt_base_t)&&pc;})
-    };
-    rt_hw_backtrace_frame_unwind(rt_thread_self(), &frame);
-    return rt_backtrace_frame(&frame);
+    struct rt_hw_backtrace_frame frame;
+    rt_thread_t thread = rt_thread_self();
+
+    RT_HW_BACKTRACE_FRAME_GET_SELF(&frame);
+    if (!frame.fp)
+        return -RT_EINVAL;
+
+    /* we don't want this frame to be printed which is nearly garbage info */
+    rt_hw_backtrace_frame_unwind(thread, &frame);
+
+    return rt_backtrace_frame(thread, &frame);
 }
 
-#else /* otherwise not implemented */
-rt_weak rt_err_t rt_backtrace(void)
-{
-   /* LOG_W cannot work under this environment */
-    rt_kprintf("%s is not implemented\n", __func__);
-    return -RT_ENOSYS;
-}
-#endif
-
-rt_err_t rt_backtrace_frame(struct rt_hw_backtrace_frame *frame)
+/**
+ * @brief Print backtrace from frame to system console device
+ *
+ * @param thread the thread which frame belongs to
+ * @param frame where backtrace starts from
+ * @return rt_err_t 0 is success, otherwise a failure
+ */
+rt_weak rt_err_t rt_backtrace_frame(rt_thread_t thread, struct rt_hw_backtrace_frame *frame)
 {
     long nesting = 0;
 
-    rt_kprintf("please use: addr2line -e rtthread.elf -a -f");
+    rt_kprintf("please use: addr2line -e rtthread.elf -a -f\n");
 
     while (nesting < RT_BACKTRACE_LEVEL_MAX_NR)
     {
         rt_kprintf(" 0x%lx", (rt_ubase_t)frame->pc);
-        if (rt_hw_backtrace_frame_unwind(rt_thread_self(), frame))
+        if (rt_hw_backtrace_frame_unwind(thread, frame))
         {
             break;
         }
@@ -525,6 +432,90 @@ rt_err_t rt_backtrace_frame(struct rt_hw_backtrace_frame *frame)
     return RT_EOK;
 }
 
+/**
+ * @brief Print backtrace from buffer to system console
+ *
+ * @param buffer where traced frames saved
+ * @param buflen number of items in buffer
+ * @return rt_err_t 0 is success, otherwise a failure
+ */
+rt_weak rt_err_t rt_backtrace_formatted_print(rt_ubase_t *buffer, long buflen)
+{
+    rt_kprintf("please use: addr2line -e rtthread.elf -a -f\n");
+
+    for (rt_size_t i = 0; i < buflen && buffer[i] != 0; i++)
+    {
+        rt_kprintf(" 0x%lx", (rt_ubase_t)buffer[i]);
+    }
+
+    rt_kprintf("\n");
+    return RT_EOK;
+}
+
+
+/**
+ * @brief Print backtrace from frame to the given buffer
+ *
+ * @param thread the thread which frame belongs to
+ * @param frame where backtrace starts from. NULL if it's the current one
+ * @param skip the number of frames to discarded counted from calling function.
+ *             Noted that the inner most frame is always discarded and not counted,
+ *             which is obviously reasonable since that's this function itself.
+ * @param buffer where traced frames saved
+ * @param buflen max number of items can be saved in buffer. If there are no more
+ *               than buflen items to be saved, there will be a NULL after the
+ *               last saved item in the buffer.
+ * @return rt_err_t 0 is success, otherwise a failure
+ */
+rt_weak rt_err_t rt_backtrace_to_buffer(rt_thread_t thread,
+                                        struct rt_hw_backtrace_frame *frame,
+                                        long skip,
+                                        rt_ubase_t *buffer,
+                                        long buflen)
+{
+    long nesting = 0;
+    struct rt_hw_backtrace_frame cur_frame;
+
+    if (!thread)
+        return -RT_EINVAL;
+
+    RT_ASSERT(rt_object_get_type(&thread->parent) == RT_Object_Class_Thread);
+
+    if (!frame)
+    {
+        frame = &cur_frame;
+        RT_HW_BACKTRACE_FRAME_GET_SELF(frame);
+        if (!frame->fp)
+            return -RT_EINVAL;
+    }
+
+    /* discard frames as required. The inner most is always threw. */
+    do {
+        rt_hw_backtrace_frame_unwind(thread, frame);
+    } while (skip-- > 0);
+
+    while (nesting < buflen)
+    {
+        *buffer++ = (rt_ubase_t)frame->pc;
+        if (rt_hw_backtrace_frame_unwind(thread, frame))
+        {
+            break;
+        }
+        nesting++;
+    }
+
+    if (nesting < buflen)
+        *buffer = RT_NULL;
+
+    return RT_EOK;
+}
+
+/**
+ * @brief Print backtrace of a thread to system console device
+ *
+ * @param thread which call stack is traced
+ * @return rt_err_t 0 is success, otherwise a failure
+ */
 rt_err_t rt_backtrace_thread(rt_thread_t thread)
 {
     rt_err_t rc;
@@ -534,7 +525,7 @@ rt_err_t rt_backtrace_thread(rt_thread_t thread)
         rc = rt_hw_backtrace_frame_get(thread, &frame);
         if (rc == RT_EOK)
         {
-            rc = rt_backtrace_frame(&frame);
+            rc = rt_backtrace_frame(thread, &frame);
         }
     }
     else
@@ -549,7 +540,7 @@ rt_err_t rt_backtrace_thread(rt_thread_t thread)
 
 static void cmd_backtrace(int argc, char** argv)
 {
-    rt_ubase_t pid;
+    rt_uintptr_t pid;
     char *end_ptr;
 
     if (argc != 2)
@@ -598,7 +589,7 @@ static void (*rt_realloc_exit_hook)(void **ptr, rt_size_t size);
 static void (*rt_free_hook)(void **ptr);
 
 /**
- * @addtogroup Hook
+ * @ingroup group_Hook
  * @{
  */
 
@@ -773,10 +764,17 @@ rt_inline void _slab_info(rt_size_t *total,
 #define _MEM_INFO(...)
 #endif
 
-static void _rt_system_heap_init(void *begin_addr, void *end_addr)
+/**
+ * @brief This function will do the generic system heap initialization.
+ *
+ * @param begin_addr the beginning address of system page.
+ *
+ * @param end_addr the end address of system page.
+ */
+void rt_system_heap_init_generic(void *begin_addr, void *end_addr)
 {
-    rt_ubase_t begin_align = RT_ALIGN((rt_ubase_t)begin_addr, RT_ALIGN_SIZE);
-    rt_ubase_t end_align   = RT_ALIGN_DOWN((rt_ubase_t)end_addr, RT_ALIGN_SIZE);
+    rt_uintptr_t begin_align = RT_ALIGN((rt_uintptr_t)begin_addr, RT_ALIGN_SIZE);
+    rt_uintptr_t end_align   = RT_ALIGN_DOWN((rt_uintptr_t)end_addr, RT_ALIGN_SIZE);
 
     RT_ASSERT(end_align > begin_align);
 
@@ -787,7 +785,8 @@ static void _rt_system_heap_init(void *begin_addr, void *end_addr)
 }
 
 /**
- * @brief This function will init system heap.
+ * @brief This function will init system heap. User can override this API to
+ *        complete other works, like heap sanitizer initialization.
  *
  * @param begin_addr the beginning address of system page.
  *
@@ -795,7 +794,7 @@ static void _rt_system_heap_init(void *begin_addr, void *end_addr)
  */
 rt_weak void rt_system_heap_init(void *begin_addr, void *end_addr)
 {
-    _rt_system_heap_init(begin_addr, end_addr);
+    rt_system_heap_init_generic(begin_addr, end_addr);
 }
 
 /**
@@ -984,17 +983,17 @@ rt_weak void *rt_malloc_align(rt_size_t size, rt_size_t align)
     if (ptr != RT_NULL)
     {
         /* the allocated memory block is aligned */
-        if (((rt_ubase_t)ptr & (align - 1)) == 0)
+        if (((rt_uintptr_t)ptr & (align - 1)) == 0)
         {
-            align_ptr = (void *)((rt_ubase_t)ptr + align);
+            align_ptr = (void *)((rt_uintptr_t)ptr + align);
         }
         else
         {
-            align_ptr = (void *)(((rt_ubase_t)ptr + (align - 1)) & ~(align - 1));
+            align_ptr = (void *)(((rt_uintptr_t)ptr + (align - 1)) & ~(align - 1));
         }
 
         /* set the pointer before alignment pointer to the real pointer */
-        *((rt_ubase_t *)((rt_ubase_t)align_ptr - sizeof(void *))) = (rt_ubase_t)ptr;
+        *((rt_uintptr_t *)((rt_uintptr_t)align_ptr - sizeof(void *))) = (rt_uintptr_t)ptr;
 
         ptr = align_ptr;
     }
@@ -1015,7 +1014,7 @@ rt_weak void rt_free_align(void *ptr)
 
     /* NULL check */
     if (ptr == RT_NULL) return;
-    real_ptr = (void *) * (rt_ubase_t *)((rt_ubase_t)ptr - sizeof(void *));
+    real_ptr = (void *) * (rt_uintptr_t *)((rt_uintptr_t)ptr - sizeof(void *));
     rt_free(real_ptr);
 }
 RTM_EXPORT(rt_free_align);
@@ -1108,7 +1107,7 @@ int __rt_ffs(int value)
 #endif /* RT_USING_TINY_FFS */
 #endif /* RT_USING_CPU_FFS */
 
-#ifdef RT_USING_DEBUG
+#ifdef RT_DEBUGING_ASSERT
 /* RT_ASSERT(EX)'s hook */
 
 void (*rt_assert_hook)(const char *ex, const char *func, rt_size_t line);
@@ -1158,6 +1157,6 @@ void rt_assert_handler(const char *ex_string, const char *func, rt_size_t line)
     }
 }
 RTM_EXPORT(rt_assert_handler);
-#endif /* RT_USING_DEBUG */
+#endif /* RT_DEBUGING_ASSERT */
 
 /**@}*/

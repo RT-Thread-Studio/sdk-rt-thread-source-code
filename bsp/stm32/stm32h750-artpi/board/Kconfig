@@ -1,17 +1,8 @@
 menu "Hardware Drivers Config"
-
-config SOC_STM32H750XB
-    bool
-    select SOC_SERIES_STM32H7
-    select RT_USING_COMPONENTS_INIT
-    select RT_USING_USER_MAIN
-    select RT_USING_CACHE
-    default y
-
-config BOARD_STM32H750_ARTPI
-    bool
-    default y
-
+    config SOC_STM32H750_ARTPI
+        bool 
+        default y
+        
 menu "Board extended module"
 
     menuconfig ART_PI_USING_MEDIA_IO
@@ -136,6 +127,14 @@ endmenu
 
 menu "On-chip Peripheral Drivers"
 
+    config BSP_SCB_ENABLE_I_CACHE
+        bool "Enable ICACHE"
+        default y
+
+    config BSP_SCB_ENABLE_D_CACHE
+        bool "Enable DCACHE"
+        default y
+
     config BSP_USING_GPIO
         bool "Enable GPIO"
         select RT_USING_PIN
@@ -147,6 +146,11 @@ menu "On-chip Peripheral Drivers"
         select RT_USING_SERIAL
         select RT_SERIAL_USING_DMA
         if BSP_USING_UART
+            config BSP_STM32_UART_V1_TX_TIMEOUT
+                int "UART TX timeout"
+                default 6000
+                depends on RT_USING_SERIAL_V1
+                
             menuconfig BSP_USING_UART1
                 bool "Enable UART1"
                 default n
@@ -226,6 +230,23 @@ menu "On-chip Peripheral Drivers"
                         default 0
 
                 endif
+        endif
+
+    menuconfig BSP_USING_LPTIM
+        bool "Enable lptimer"
+        default n
+        select RT_USING_LPTIMER
+        select RT_USING_HWTIMER
+        if BSP_USING_LPTIM
+            config BSP_USING_LPTIM1
+                bool "Enable LPTIM1"
+                default n
+            config BSP_USING_LPTIM2
+                bool "Enable LPTIM2"
+                default n
+            config BSP_USING_LPTIM3
+                bool "Enable LPTIM3"
+                default n
         endif
 
     menuconfig BSP_USING_SPI
@@ -314,6 +335,7 @@ menu "On-chip Peripheral Drivers"
 
     config BSP_USING_SDRAM
         bool "Enable SDRAM"
+        select RT_USING_MEMHEAP
         default n
 
     config BSP_USING_WDT
@@ -326,7 +348,6 @@ menu "On-chip Peripheral Drivers"
         select BSP_USING_LTDC
         select BSP_USING_GPIO
         select BSP_USING_SDRAM
-        select RT_USING_MEMHEAP
         default n
 
     menuconfig BSP_USING_SDIO_ARTPI
@@ -386,7 +407,7 @@ menu "On-chip Peripheral Drivers"
     config BSP_USING_LTDC
         bool
         default n
-    source "$BSP_DIR/../libraries/HAL_Drivers/drivers/Kconfig"
+    source "$(BSP_DIR)/../libraries/HAL_Drivers/drivers/Kconfig"
 
 endmenu
 

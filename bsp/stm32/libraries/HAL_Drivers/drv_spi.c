@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2023, RT-Thread Development Team
+ * Copyright (c) 2006-2024, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -232,7 +232,7 @@ static rt_err_t stm32_spi_init(struct stm32_spi *spi_drv, struct rt_spi_configur
     spi_handle->Init.MasterReceiverAutoSusp     = SPI_MASTER_RX_AUTOSUSP_DISABLE;
     spi_handle->Init.MasterKeepIOState = SPI_MASTER_KEEP_IO_STATE_ENABLE;
     spi_handle->Init.IOSwap                     = SPI_IO_SWAP_DISABLE;
-    spi_handle->Init.FifoThreshold              = SPI_FIFO_THRESHOLD_08DATA;
+    spi_handle->Init.FifoThreshold              = SPI_FIFO_THRESHOLD_01DATA;
 #endif
 
     if (HAL_SPI_Init(spi_handle) != HAL_OK)
@@ -374,6 +374,35 @@ static rt_ssize_t spixfer(struct rt_spi_device *device, struct rt_spi_message *m
             }
 #endif /* SOC_SERIES_STM32H7 || SOC_SERIES_STM32F7 */
         }
+        else if ((spi_drv->spi_dma_flag & SPI_USING_RX_DMA_FLAG) && (send_length >= DMA_TRANS_MIN_LEN))
+        {
+#if defined(SOC_SERIES_STM32H7) || defined(SOC_SERIES_STM32F7)
+            if (RT_IS_ALIGN((rt_uint32_t)recv_buf, 32) && recv_buf != RT_NULL) /* aligned with 32 bytes? */
+            {
+                p_txrx_buffer = (rt_uint32_t *)recv_buf; /* recv_buf aligns with 32 bytes, no more operations */
+            }
+            else
+            {
+                /* recv_buf doesn't align with 32 bytes, so creat a cache buffer with 32 bytes aligned */
+                dma_aligned_buffer = (rt_uint32_t *)rt_malloc_align(send_length, 32);
+                rt_memcpy(dma_aligned_buffer, recv_buf, send_length);
+                p_txrx_buffer = dma_aligned_buffer;
+            }
+            rt_hw_cpu_dcache_ops(RT_HW_CACHE_FLUSH, dma_aligned_buffer, send_length);
+#else
+            if (RT_IS_ALIGN((rt_uint32_t)recv_buf, 4) && recv_buf != RT_NULL) /* aligned with 4 bytes? */
+            {
+                p_txrx_buffer = (rt_uint32_t *)recv_buf; /* recv_buf aligns with 4 bytes, no more operations */
+            }
+            else
+            {
+                /* recv_buf doesn't align with 4 bytes, so creat a cache buffer with 4 bytes aligned */
+                dma_aligned_buffer = (rt_uint32_t *)rt_malloc(send_length); /* aligned with RT_ALIGN_SIZE (8 bytes by default) */
+                rt_memcpy(dma_aligned_buffer, recv_buf, send_length);
+                p_txrx_buffer = dma_aligned_buffer;
+            }
+#endif /* SOC_SERIES_STM32H7 || SOC_SERIES_STM32F7 */
+        }
 
         /* start once data exchange in DMA mode */
         if (message->send_buf && message->recv_buf)
@@ -505,6 +534,7 @@ static rt_err_t spi_configure(struct rt_spi_device *device,
 
     struct stm32_spi *spi_drv =  rt_container_of(device->bus, struct stm32_spi, spi_bus);
     spi_drv->cfg = configuration;
+    rt_kprintf("@spi_configure\n");
 
     return stm32_spi_init(spi_drv, configuration);
 }

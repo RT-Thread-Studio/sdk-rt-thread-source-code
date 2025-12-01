@@ -76,28 +76,57 @@ void rt_thread_resume_sethook(void (*hook)(rt_thread_t thread))
 RT_OBJECT_HOOKLIST_DEFINE(rt_thread_inited);
 #endif /* defined(RT_USING_HOOK) && defined(RT_HOOK_USING_FUNC_PTR) */
 
+#ifdef RT_USING_MUTEX
+static void _thread_detach_from_mutex(rt_thread_t thread)
+{
+    rt_list_t *node;
+    rt_list_t *tmp_list;
+    struct rt_mutex *mutex;
+    rt_base_t level;
+
+    level = rt_spin_lock_irqsave(&thread->spinlock);
+
+    /* check if thread is waiting on a mutex */
+    if ((thread->pending_object) &&
+        (rt_object_get_type(thread->pending_object) == RT_Object_Class_Mutex))
+    {
+        /* remove it from its waiting list */
+        struct rt_mutex *mutex = (struct rt_mutex*)thread->pending_object;
+        rt_mutex_drop_thread(mutex, thread);
+        thread->pending_object = RT_NULL;
+    }
+
+    /* free taken mutex after detaching from waiting, so we don't lost mutex just got */
+    rt_list_for_each_safe(node, tmp_list, &(thread->taken_object_list))
+    {
+        mutex = rt_list_entry(node, struct rt_mutex, taken_list);
+        LOG_D("Thread [%s] exits while holding mutex [%s].\n", thread->parent.name, mutex->parent.parent.name);
+        /* recursively take */
+        mutex->hold = 1;
+        rt_mutex_release(mutex);
+    }
+
+    rt_spin_unlock_irqrestore(&thread->spinlock, level);
+}
+
+#else
+
+static void _thread_detach_from_mutex(rt_thread_t thread) {}
+#endif
+
 static void _thread_exit(void)
 {
     struct rt_thread *thread;
-    rt_sched_lock_level_t slvl;
     rt_base_t critical_level;
 
     /* get current thread */
     thread = rt_thread_self();
 
     critical_level = rt_enter_critical();
-    rt_sched_lock(&slvl);
 
-    /* remove from schedule */
-    rt_sched_remove_thread(thread);
+    rt_thread_close(thread);
 
-    /* remove it from timer list */
-    rt_timer_detach(&thread->thread_timer);
-
-    /* change stat */
-    rt_sched_thread_close(thread);
-
-    rt_sched_unlock(slvl);
+    _thread_detach_from_mutex(thread);
 
     /* insert to defunct thread list */
     rt_thread_defunct_enqueue(thread);
@@ -143,41 +172,6 @@ static void _thread_timeout(void *parameter)
     /* do schedule and release the scheduler lock */
     rt_sched_unlock_n_resched(slvl);
 }
-
-#ifdef RT_USING_MUTEX
-static void _thread_detach_from_mutex(rt_thread_t thread)
-{
-    rt_list_t *node;
-    rt_list_t *tmp_list;
-    struct rt_mutex *mutex;
-    rt_base_t level;
-
-    level = rt_spin_lock_irqsave(&thread->spinlock);
-
-    /* check if thread is waiting on a mutex */
-    if ((thread->pending_object) &&
-        (rt_object_get_type(thread->pending_object) == RT_Object_Class_Mutex))
-    {
-        /* remove it from its waiting list */
-        struct rt_mutex *mutex = (struct rt_mutex*)thread->pending_object;
-        rt_mutex_drop_thread(mutex, thread);
-        thread->pending_object = RT_NULL;
-    }
-
-    /* free taken mutex after detaching from waiting, so we don't lost mutex just got */
-    rt_list_for_each_safe(node, tmp_list, &(thread->taken_object_list))
-    {
-        mutex = rt_list_entry(node, struct rt_mutex, taken_list);
-        rt_mutex_release(mutex);
-    }
-
-    rt_spin_unlock_irqrestore(&thread->spinlock, level);
-}
-
-#else
-
-static void _thread_detach_from_mutex(rt_thread_t thread) {}
-#endif
 
 static rt_err_t _thread_init(struct rt_thread *thread,
                              const char       *name,
@@ -303,7 +297,7 @@ static rt_err_t _thread_init(struct rt_thread *thread,
 }
 
 /**
- * @addtogroup Thread
+ * @addtogroup group_Thread
  */
 
 /**@{*/
@@ -345,6 +339,9 @@ rt_err_t rt_thread_init(struct rt_thread *thread,
     RT_ASSERT(stack_start != RT_NULL);
     RT_ASSERT(tick != 0);
 
+    /* clean memory data of thread */
+    rt_memset(thread, 0x0, sizeof(struct rt_thread));
+
     /* initialize thread object */
     rt_object_init((rt_object_t)thread, RT_Object_Class_Thread, name);
 
@@ -366,19 +363,22 @@ RTM_EXPORT(rt_thread_init);
  */
 rt_thread_t rt_thread_self(void)
 {
-#ifdef RT_USING_SMP
-    rt_base_t lock;
+#ifndef RT_USING_SMP
+    return rt_cpu_self()->current_thread;
+
+#elif defined (ARCH_USING_HW_THREAD_SELF)
+    return rt_hw_thread_self();
+
+#else /* !ARCH_USING_HW_THREAD_SELF */
     rt_thread_t self;
+    rt_base_t lock;
 
     lock = rt_hw_local_irq_disable();
     self = rt_cpu_self()->current_thread;
     rt_hw_local_irq_enable(lock);
-    return self;
-#else
-    extern rt_thread_t rt_current_thread;
 
-    return rt_current_thread;
-#endif /* RT_USING_SMP */
+    return self;
+#endif /* ARCH_USING_HW_THREAD_SELF */
 }
 RTM_EXPORT(rt_thread_self);
 
@@ -398,7 +398,7 @@ rt_err_t rt_thread_startup(rt_thread_t thread)
     RT_ASSERT(rt_object_get_type((rt_object_t)thread) == RT_Object_Class_Thread);
 
     LOG_D("startup a thread:%s with priority:%d",
-          thread->parent.name, thread->current_priority);
+          thread->parent.name, RT_SCHED_PRIV(thread).current_priority);
 
     /* calculate priority attribute and reset thread stat to suspend */
     rt_sched_thread_startup(thread);
@@ -409,6 +409,52 @@ rt_err_t rt_thread_startup(rt_thread_t thread)
     return RT_EOK;
 }
 RTM_EXPORT(rt_thread_startup);
+
+/**
+ * @brief   This function will close a thread. The thread object will be removed from
+ *          thread queue and detached/deleted from the system object management.
+ *          It's different from rt_thread_delete or rt_thread_detach that this will not enqueue
+ *          the closing thread to cleanup queue.
+ *
+ * @param   thread is the thread to be closed.
+ *
+ * @return  Return the operation status. If the return value is RT_EOK, the function is successfully executed.
+ *          If the return value is any other values, it means this operation failed.
+ */
+rt_err_t rt_thread_close(rt_thread_t thread)
+{
+    rt_sched_lock_level_t slvl;
+    rt_uint8_t thread_status;
+
+    /* forbid scheduling on current core if closing current thread */
+    RT_ASSERT(thread != rt_thread_self() || rt_critical_level());
+
+    /* before checking status of scheduler */
+    rt_sched_lock(&slvl);
+
+    /* check if thread is already closed */
+    thread_status = rt_sched_thread_get_stat(thread);
+    if (thread_status != RT_THREAD_CLOSE)
+    {
+        if (thread_status != RT_THREAD_INIT)
+        {
+            /* remove from schedule */
+            rt_sched_remove_thread(thread);
+        }
+
+        /* release thread timer */
+        rt_timer_detach(&(thread->thread_timer));
+
+        /* change stat */
+        rt_sched_thread_close(thread);
+    }
+
+    /* scheduler works are done */
+    rt_sched_unlock(slvl);
+
+    return RT_EOK;
+}
+RTM_EXPORT(rt_thread_close);
 
 static rt_err_t _thread_detach(rt_thread_t thread);
 
@@ -435,8 +481,6 @@ RTM_EXPORT(rt_thread_detach);
 static rt_err_t _thread_detach(rt_thread_t thread)
 {
     rt_err_t error;
-    rt_sched_lock_level_t slvl;
-    rt_uint8_t thread_status;
     rt_base_t critical_level;
 
     /**
@@ -445,42 +489,12 @@ static rt_err_t _thread_detach(rt_thread_t thread)
      */
     critical_level = rt_enter_critical();
 
-    /* before checking status of scheduler */
-    rt_sched_lock(&slvl);
+    error = rt_thread_close(thread);
 
-    /* check if thread is already closed */
-    thread_status = rt_sched_thread_get_stat(thread);
-    if (thread_status != RT_THREAD_CLOSE)
-    {
-        if (thread_status != RT_THREAD_INIT)
-        {
-            /* remove from schedule */
-            rt_sched_remove_thread(thread);
-        }
+    _thread_detach_from_mutex(thread);
 
-        /* release thread timer */
-        rt_timer_detach(&(thread->thread_timer));
-
-        /* change stat */
-        rt_sched_thread_close(thread);
-
-        /* scheduler works are done */
-        rt_sched_unlock(slvl);
-
-        _thread_detach_from_mutex(thread);
-
-        /* insert to defunct thread list */
-        rt_thread_defunct_enqueue(thread);
-
-        error = RT_EOK;
-    }
-    else
-    {
-        rt_sched_unlock(slvl);
-
-        /* already closed */
-        error = RT_EOK;
-    }
+    /* insert to defunct thread list */
+    rt_thread_defunct_enqueue(thread);
 
     rt_exit_critical_safe(critical_level);
     return error;
@@ -815,7 +829,7 @@ rt_err_t rt_thread_control(rt_thread_t thread, int cmd, void *arg)
         {
             rt_uint8_t cpu;
 
-            cpu = (rt_uint8_t)(size_t)arg;
+            cpu = (rt_uint8_t)(rt_size_t)arg;
             return rt_sched_thread_bind_cpu(thread, cpu);
         }
 
@@ -897,7 +911,7 @@ rt_err_t rt_thread_suspend_to_list(rt_thread_t thread, rt_list_t *susp_list, int
     stat = rt_sched_thread_get_stat(thread);
     if ((stat != RT_THREAD_READY) && (stat != RT_THREAD_RUNNING))
     {
-        LOG_D("thread suspend: thread disorder, 0x%2x", thread->stat);
+        LOG_D("thread suspend: thread disorder, 0x%2x", RT_SCHED_CTX(thread).stat);
         rt_sched_unlock(slvl);
         return -RT_ERROR;
     }
@@ -909,25 +923,28 @@ rt_err_t rt_thread_suspend_to_list(rt_thread_t thread, rt_list_t *susp_list, int
     }
 
 #ifdef RT_USING_SMART
-    rt_sched_unlock(slvl);
-
-    /* check pending signals for thread before suspend */
-    if (lwp_thread_signal_suspend_check(thread, suspend_flag) == 0)
+    if (thread->lwp)
     {
-        /* not to suspend */
-        return -RT_EINTR;
-    }
+        rt_sched_unlock(slvl);
 
-    rt_sched_lock(&slvl);
-    if (stat == RT_THREAD_READY)
-    {
-        stat = rt_sched_thread_get_stat(thread);
-
-        if (stat != RT_THREAD_READY)
+        /* check pending signals for thread before suspend */
+        if (lwp_thread_signal_suspend_check(thread, suspend_flag) == 0)
         {
-            /* status updated while we check for signal */
-            rt_sched_unlock(slvl);
-            return -RT_ERROR;
+            /* not to suspend */
+            return -RT_EINTR;
+        }
+
+        rt_sched_lock(&slvl);
+        if (stat == RT_THREAD_READY)
+        {
+            stat = rt_sched_thread_get_stat(thread);
+
+            if (stat != RT_THREAD_READY)
+            {
+                /* status updated while we check for signal */
+                rt_sched_unlock(slvl);
+                return -RT_ERROR;
+            }
         }
     }
 #endif
@@ -1009,6 +1026,15 @@ rt_err_t rt_thread_resume(rt_thread_t thread)
     if (!error)
     {
         error = rt_sched_unlock_n_resched(slvl);
+
+        /**
+         * RT_ESCHEDLOCKED indicates that the current thread is in a critical section,
+         * rather than 'thread' can't be resumed. Therefore, we can ignore this error.
+         */
+        if (error == -RT_ESCHEDLOCKED)
+        {
+            error = RT_EOK;
+        }
     }
     else
     {

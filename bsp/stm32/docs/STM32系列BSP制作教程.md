@@ -101,21 +101,33 @@ BSP 的制作过程分为如下五个步骤：
 
 在 CubeMX 工程中将芯片型号为修改芯片型号为 STM32F103RBTx 。
 
+注意：本文使用的CubeMX版本为6.12.0
+
 #### 3.2.1 生成 CubeMX 工程
 
 配置系统时钟、外设引脚等，步骤如下图所示：
 
 1. 打开外部时钟、设置下载方式、打开串口外设（注意只需要选择串口外设引脚即可，无需配置其他参数）：
 
-![配置芯片引脚](./figures/CubeMX_1.png)
+![打开外部时钟](./figures/CubeMX_1.png)
+
+![设置下载方式](./figures/CubeMX_2.png)
+
+
+
+![配置串口](figures/CubeMX_3.png)
+
+
+
+
 
 2. 配置系统时钟：
 
-![配置系统时钟](./figures/CubeMX_2.png)
+![配置系统时钟](figures/CubeMX_4.png)
 
 3. 设置项目名称，并在指定地址重新生成 CubeMX 工程：
 
-![生成对应的配置代码](./figures/CubeMX_4.png)
+![生成对应的配置代码](figures/CubeMX_5.png)
 
 注意：在生成代码时，不要勾选以下选项（即：不让其生成单独的 .c/.h 驱动文件，直接全部更新到 rt-thread 要使用的 stm32xxx_hal_msp.c 文件中）
 
@@ -123,15 +135,23 @@ BSP 的制作过程分为如下五个步骤：
 
 最终 CubeMX 生成的工程目录结构如下图所示：
 
-![CubeMX 图7](./figures/CubeMX_5.png)
+![CubeMX 图7](./figures/CubeMX_6.png)
 
 #### 3.2.2 拷贝初始化函数
 
 在 **board.c** 文件中存放了函数 `SystemClock_Config()` ，该函数负责初始化系统时钟。当使用 CubeMX 工具对系统时钟重新配置的时候，需要更新这个函数。
 
-该函数由 CubeMX 工具生成，默认存放在`board/CubeMX_Config/Src/main.c` 文件中。但是该文件并没有被包含到我们的工程中，因此需要将这个函数从 main.c 中拷贝到 board.c 文件中。在整个 BSP 的制作过程中，这个函数是唯一要要拷贝的函数，该函数内容如下所示：
+该函数由 CubeMX 工具生成，默认存放在`board/CubeMX_Config/Src/main.c` 文件中。但是该文件并没有被包含到我们的工程中，因此需要将这个函数从 main.c 中拷贝到 board.c 文件中。该函数内容如下所示：
 
 ![board_1](./figures/board_1.png)
+
+如果你的MCU时钟树较为高级，且配置了外设使用PLL2、PLL3等非默认情况，生成了`PeriphCommonClock_Config()`函数，请也拷贝它。由于`rt-thread`并不会显式调用它，可在`SystemClock_Config()`中手动增加调用它。该函数内容可能如下所示：
+
+![board_pclock](figures/board_pclock.png)
+
+如果你的MCU包含MPU外设且并不想使用`rt-thread`提供的`Memory Protection`，想使用`cubemx`配置的内容时，可以拷贝生成的`MPU_Config()`。同样`rt-thread`不会显式调用它，你可以修改一下后使用`INIT_BOARD_EXPORT`等方式让其自动调用。该函数内容可能如下所示（实际使用建议分块仔细配置）：
+
+![board_mpu](figures/board_mpu.png)
 
 在 **board.h** 文件中配置了 FLASH 和 RAM 的相关参数，这个文件中需要修改的是 `STM32_FLASH_SIZE` 和 `STM32_SRAM_SIZE` 这两个宏控制的参数。本次制作的 BSP 所用的 STM32F103RBTx 芯片的 flash 大小为 128k，ram 的大小为 20k，因此对该文件作出如下的修改：
 
