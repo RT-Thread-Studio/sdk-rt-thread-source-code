@@ -3,12 +3,12 @@
  */
 
 /**
- * @addtogroup group_IPC
+ * @addtogroup group_thread_comm
  * @{
  */
 
 /**
- * @defgroup group_Signal Signal
+ * @defgroup group_signal Signal
  * @brief signal is used for thread kill etc.
  *
  * A signal (also known as a soft interrupt signal), from a software perspective,
