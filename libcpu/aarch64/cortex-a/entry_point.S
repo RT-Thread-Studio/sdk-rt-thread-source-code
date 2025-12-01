@@ -7,6 +7,7 @@
  * 2020-01-15     bigmagic     the first version
  * 2020-08-10     SummerGift   support clang compiler
  * 2023-04-29     GuEe-GUI     support kernel's ARM64 boot header
+ * 2024-01-18     Shell        fix implicit dependency of cpuid management
  */
 
 #ifndef __ASSEMBLY__
@@ -56,7 +57,7 @@
 /*
  * Our goal is to boot the rt-thread as possible without modifying the
  * bootloader's config, so we use the kernel's boot header for ARM64:
- *   https://www.kernel.org/doc/html/latest/arm64/booting.html#call-the-kernel-image
+ *   https://www.kernel.org/doc/html/latest/arch/arm64/booting.html#call-the-kernel-image
  */
 _head:
     b       _start          /* Executable code */
@@ -95,6 +96,10 @@ _start:
     /* Save cpu stack */
     get_phy stack_top, .boot_cpu_stack_top
     /* Save cpu id temp */
+#ifdef ARCH_USING_HW_THREAD_SELF
+    msr     tpidrro_el0, xzr
+    /* Save thread self */
+#endif /* ARCH_USING_HW_THREAD_SELF */
     msr     tpidr_el1, xzr
 
     bl      init_cpu_el
@@ -149,11 +154,10 @@ _secondary_cpu_entry:
 
     /* Get cpu id success */
     sub     x0, x2, #1
-    msr     tpidr_el1, x0           /* Save cpu id global */
-#else
-    bl      rt_hw_cpu_id_set
-    mrs     x0, tpidr_el1
 #endif /* RT_USING_OFW */
+    /* Save cpu id global */
+    bl      rt_hw_cpu_id_set
+    bl      rt_hw_cpu_id
 
     /* Set current cpu's stack top */
     sub     x0, x0, #1
@@ -230,6 +234,10 @@ init_cpu_el:
     bic     x0, x0, #(1 << 1)       /* Disable Alignment check */
     msr     sctlr_el1, x0
 
+    mrs     x0, cntkctl_el1
+    orr     x0, x0, #(1 << 1)      /* Set EL0VCTEN, enabling the EL0 Virtual Count Timer */
+    msr     cntkctl_el1, x0
+
     /* Avoid trap from SIMD or float point instruction */
     mov     x0, #0x00300000         /* Don't trap any SIMD/FP instructions in both EL0 and EL1 */
     msr     cpacr_el1, x0
@@ -278,7 +286,7 @@ init_mmu_early:
     get_phy x1, .early_tbl1_page
 
     get_pvoff x2 x3
-    ldr     x2, =0x40000000         /* Map 1G memory for kernel space */
+    ldr     x2, =ARCH_EARLY_MAP_SIZE    /* Map 1G memory for kernel space */
     bl      rt_hw_mem_setup_early
 
     b       enable_mmu_early

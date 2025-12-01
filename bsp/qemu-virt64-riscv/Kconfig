@@ -1,41 +1,34 @@
 mainmenu "RT-Thread Project Configuration"
 
-config BSP_DIR
-    string
-    option env="BSP_ROOT"
-    default "."
+BSP_DIR := .
 
-config RTT_DIR
-    string
-    option env="RTT_ROOT"
-    default "../../"
+RTT_DIR := ../../
 
-config PKGS_DIR
-    string
-    option env="PKGS_ROOT"
-    default "packages"
+PKGS_DIR := packages
 
-source "$RTT_DIR/Kconfig"
-source "$PKGS_DIR/Kconfig"
-source "driver/Kconfig"
+source "$(RTT_DIR)/Kconfig"
+osource "$PKGS_DIR/Kconfig"
+rsource "driver/Kconfig"
 
 config BOARD_QEMU_VIRT_RV64
     bool
     select ARCH_RISCV64
-    select ARCH_CONTEXT_EXTEND
+    select ARCH_USING_RISCV_COMMON64
     select RT_USING_COMPONENTS_INIT
     select RT_USING_USER_MAIN
     select RT_USING_CACHE
     select ARCH_MM_MMU
-    select RT_USING_HW_ATOMIC
+    select ARCH_REMAP_KERNEL
     default y
 
 config ENABLE_FPU
     bool "Enable FPU"
+    select ARCH_RISCV_FPU
     default y
 
 config ENABLE_VECTOR
     bool "Using RISC-V Vector Extension"
+    select ARCH_RISCV_VECTOR
     default n
 
 if ENABLE_VECTOR
@@ -58,10 +51,6 @@ config RT_USING_USERSPACE_32BIT_LIMIT
 config RT_USING_VIRTIO_MMIO_ALIGN
     bool "Open packed attribution, this may caused an error on virtio"
     default n
-
-config ARCH_USING_NEW_CTX_SWITCH
-    bool
-    default y
 
 config __STACKSIZE__
     int "stack size for interrupt"

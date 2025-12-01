@@ -29,7 +29,7 @@ if GetDepend(['RT_USING_SPI']):
 if GetDepend(['RT_USING_QSPI']):
     src += ['drv_qspi.c']
 
-if GetDepend('RT_USING_SPI_BITOPS'):
+if GetDepend('RT_USING_SOFT_SPI'):
     src += ['drv_soft_spi.c']
 
 if GetDepend(['RT_USING_I2C', 'RT_USING_I2C_BITOPS']):
@@ -40,7 +40,7 @@ if GetDepend(['RT_USING_I2C']):
     if GetDepend('BSP_USING_HARD_I2C1') or GetDepend('BSP_USING_HARD_I2C2') or GetDepend('BSP_USING_HARD_I2C3') or GetDepend('BSP_USING_HARD_I2C4'):
         src += ['drv_hard_i2c.c']
 
-if GetDepend(['BSP_USING_ETH', 'RT_USING_LWIP']):
+if GetDepend(['BSP_USING_ETH', 'RT_USING_LWIP']) and not GetDepend(['SOC_STM32H750_ARTPI']):
     src += ['drv_eth.c']
 
 if GetDepend(['RT_USING_ADC']):
@@ -52,8 +52,10 @@ if GetDepend(['RT_USING_DAC']):
 if GetDepend(['RT_USING_CAN']):
     src += ['drv_can.c']
 
-if GetDepend(['RT_USING_PM', 'SOC_SERIES_STM32L4']):
+if GetDepend(['RT_USING_PM']):
     src += ['drv_pm.c']
+
+if GetDepend(['BSP_USING_LPTIM']):
     src += ['drv_lptim.c']
 
 if GetDepend('BSP_USING_SDRAM'):
@@ -88,6 +90,9 @@ if GetDepend(['BSP_USING_ON_CHIP_FLASH', 'SOC_SERIES_STM32F4']):
 
 if GetDepend(['BSP_USING_ON_CHIP_FLASH', 'SOC_SERIES_STM32F7']):
     src += [os.path.join('drv_flash', 'drv_flash_f7.c')]
+
+if GetDepend(['BSP_USING_ON_CHIP_FLASH', 'SOC_SERIES_STM32L1']):
+    src += [os.path.join('drv_flash', 'drv_flash_l1.c')]
 
 if GetDepend(['BSP_USING_ON_CHIP_FLASH', 'SOC_SERIES_STM32L4']):
     src += [os.path.join('drv_flash', 'drv_flash_l4.c')]

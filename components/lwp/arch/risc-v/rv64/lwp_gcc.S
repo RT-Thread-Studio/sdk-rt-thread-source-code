@@ -35,12 +35,12 @@ arch_start_umode:
     // load kstack for user process
     csrw sscratch, a3
     li t0, SSTATUS_SPP | SSTATUS_SIE    // set as user mode, close interrupt
-    csrc sstatus, t0 
+    csrc sstatus, t0
     li t0, SSTATUS_SPIE // enable interrupt when return to user mode
     csrs sstatus, t0
 
     csrw sepc, a1
-    mv a3, a2
+    mv sp, a2
     sret//enter user mode
 
 /*
@@ -107,12 +107,13 @@ arch_signal_quit:
     call arch_signal_ucontext_restore
 
     /* reset kernel sp to the stack */
+    addi sp, sp, CTX_REG_NR * REGBYTES
     STORE sp, FRAME_OFF_SP(a0)
     /* return value is user sp */
     mv sp, a0
 
     /* restore user sp before enter trap */
-    addi a0, sp, CTX_REG_NR * REGBYTES 
+    addi a0, sp, CTX_REG_NR * REGBYTES
     csrw sscratch, a0
 
 
@@ -174,6 +175,9 @@ arch_thread_signal_enter:
     /* dummy a2 */
     mv a2, a1
 
+    /* restore user GP */
+    LOAD gp, FRAME_OFF_GP(s3)
+
     /**
      * handler(signo, psi, ucontext);
      */
@@ -234,8 +238,7 @@ __restore_sp_from_sscratch: // from kernel
     j __move_stack_context
 
 __restore_sp_from_tcb: // from user
-    la a0, rt_current_thread
-    LOAD a0, 0(a0)
+    jal rt_thread_self
     jal get_thread_kernel_stack_top
     mv t0, a0
 
@@ -272,13 +275,13 @@ copy_context_loop:
     call syscall_handler
     j arch_syscall_exit
 START_POINT_END(syscall_entry)
-    
+
 .global arch_syscall_exit
 arch_syscall_exit:
     CLOSE_INTERRUPT
 
     #if defined(ARCH_MM_MMU)
-        LOAD s0, 2 * REGBYTES(sp)
+        LOAD s0, FRAME_OFF_SSTATUS(sp)
         andi s0, s0, 0x100
         bnez s0, dont_ret_to_user
         j arch_ret_to_user

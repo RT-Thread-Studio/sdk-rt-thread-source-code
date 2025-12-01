@@ -22,7 +22,8 @@
 # 2015-01-20     Bernard      Add copyright information
 # 2015-07-25     Bernard      Add LOCAL_CCFLAGS/LOCAL_CPPPATH/LOCAL_CPPDEFINES for
 #                             group definition.
-#
+# 2024-04-21     Bernard      Add toolchain detection in sdk packages
+# 2025-01-05     Bernard      Add logging as Env['log']
 
 import os
 import sys
@@ -31,12 +32,11 @@ import utils
 import operator
 import rtconfig
 import platform
-
+import logging
 from SCons.Script import *
 from utils import _make_path_relative
 from mkdist import do_copy_file
 from options import AddOptions
-
 
 BuildOptions = {}
 Projects = []
@@ -131,6 +131,14 @@ def PrepareBuilding(env, root_directory, has_libcpu=False, remove_components = [
     AddOptions()
 
     Env = env
+
+    # prepare logging and set log
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    logger = logging.getLogger('rt-scons')
+    if GetOption('verbose'):
+        logger.setLevel(logging.DEBUG)
+    Env['log'] = logger
+
     Rtt_Root = os.path.abspath(root_directory)
 
     # make an absolute root directory
@@ -139,10 +147,12 @@ def PrepareBuilding(env, root_directory, has_libcpu=False, remove_components = [
 
     # set RTT_ROOT in ENV
     Env['RTT_ROOT'] = Rtt_Root
+    os.environ["RTT_DIR"] = Rtt_Root
     # set BSP_ROOT in ENV
     Env['BSP_ROOT'] = Dir('#').abspath
+    os.environ["BSP_DIR"] = Dir('#').abspath
 
-    sys.path = sys.path + [os.path.join(Rtt_Root, 'tools')]
+    sys.path += os.path.join(Rtt_Root, 'tools')
 
     # {target_name:(CROSS_TOOL, PLATFORM)}
     tgt_dict = {'mdk':('keil', 'armcc'),
@@ -162,7 +172,8 @@ def PrepareBuilding(env, root_directory, has_libcpu=False, remove_components = [
                 'cmake-armclang':('keil', 'armclang'),
                 'xmake':('gcc', 'gcc'),
                 'codelite' : ('gcc', 'gcc'),
-                'esp-idf': ('gcc', 'gcc')}
+                'esp-idf': ('gcc', 'gcc'),
+                'zig':('gcc', 'gcc')}
     tgt_name = GetOption('target')
 
     if tgt_name:
@@ -186,10 +197,32 @@ def PrepareBuilding(env, root_directory, has_libcpu=False, remove_components = [
         os.environ['RTT_CC_PREFIX'] = exec_prefix
 
     # auto change the 'RTT_EXEC_PATH' when 'rtconfig.EXEC_PATH' get failed
-    if not os.path.exists(rtconfig.EXEC_PATH):
+    if not utils.CmdExists(os.path.join(rtconfig.EXEC_PATH, rtconfig.CC)):
+        Env['log'].debug('To detect CC because CC path in rtconfig.py is invalid:')
+        Env['log'].debug('  rtconfig.py cc ->' + os.path.join(rtconfig.EXEC_PATH, rtconfig.CC))
         if 'RTT_EXEC_PATH' in os.environ:
             # del the 'RTT_EXEC_PATH' and using the 'EXEC_PATH' setting on rtconfig.py
             del os.environ['RTT_EXEC_PATH']
+
+        try:
+            # try to detect toolchains in env
+            envm = utils.ImportModule('env_utility')
+            # from env import GetSDKPath
+            exec_path = envm.GetSDKPath(rtconfig.CC)
+            if exec_path != None:
+                if 'gcc' in rtconfig.CC:
+                    exec_path = os.path.join(exec_path, 'bin')
+
+                if os.path.exists(exec_path):
+                    Env['log'].debug('set CC to ' + exec_path)
+                    rtconfig.EXEC_PATH = exec_path
+                    os.environ['RTT_EXEC_PATH'] = exec_path
+                else:
+                    Env['log'].debug('No Toolchain found in path(%s).' % exec_path)
+        except Exception as e:
+            # detect failed, ignore
+            Env['log'].debug(e)
+            pass
 
     exec_path = GetOption('exec-path')
     if exec_path:
@@ -302,8 +335,13 @@ def PrepareBuilding(env, root_directory, has_libcpu=False, remove_components = [
         else:
             print('--global-macros arguments are illegal!')
 
+    if GetOption('attach'):
+        from attachconfig import GenAttachConfigProject
+        GenAttachConfigProject()
+        exit(0)
+
     if GetOption('genconfig'):
-        from genconf import genconfig
+        from env_utility import genconfig
         genconfig()
         exit(0)
 
@@ -311,25 +349,25 @@ def PrepareBuilding(env, root_directory, has_libcpu=False, remove_components = [
         from WCS import ThreadStackStaticAnalysis
         ThreadStackStaticAnalysis(Env)
         exit(0)
-    if platform.system() != 'Windows':
-        if GetOption('menuconfig'):
-            from menuconfig import menuconfig
-            menuconfig(Rtt_Root)
-            exit(0)
 
-    if GetOption('pyconfig-silent'):
-        from menuconfig import guiconfig_silent
-        guiconfig_silent(Rtt_Root)
+    if GetOption('menuconfig'):
+        from env_utility import menuconfig
+        menuconfig(Rtt_Root)
         exit(0)
 
-    elif GetOption('pyconfig'):
-        from menuconfig import guiconfig
+    if GetOption('defconfig'):
+        from env_utility import defconfig
+        defconfig(Rtt_Root)
+        exit(0)
+
+    elif GetOption('guiconfig'):
+        from env_utility import guiconfig
         guiconfig(Rtt_Root)
         exit(0)
 
     configfn = GetOption('useconfig')
     if configfn:
-        from menuconfig import mk_rtconfig
+        from env_utility import mk_rtconfig
         mk_rtconfig(configfn)
         exit(0)
 
@@ -805,6 +843,11 @@ def DoBuilding(target, objects):
 
                 break
     else:
+        # generate build/compile_commands.json
+        if GetOption('cdb') and utils.VerTuple(SCons.__version__) >= (4, 0, 0):
+            Env.Tool("compilation_db")
+            Env.CompilationDatabase('build/compile_commands.json')
+
         # remove source files with local flags setting
         for group in Projects:
             if 'LOCAL_CFLAGS' in group or 'LOCAL_CXXFLAGS' in group or 'LOCAL_CCFLAGS' in group or 'LOCAL_CPPPATH' in group or 'LOCAL_CPPDEFINES' in group:
@@ -900,7 +943,7 @@ def GenTargetProject(program = None):
 
     if GetOption('target') == 'cmake' or GetOption('target') == 'cmake-armclang':
         from cmake import CMakeProject
-        CMakeProject(Env,Projects)
+        CMakeProject(Env, Projects, GetOption('project-name'))
 
     if GetOption('target') == 'xmake':
         from xmake import XMakeProject
@@ -909,6 +952,10 @@ def GenTargetProject(program = None):
     if GetOption('target') == 'esp-idf':
         from esp_idf import ESPIDFProject
         ESPIDFProject(Env, Projects)
+
+    if GetOption('target') == 'zig':
+        from zigbuild import ZigBuildProject
+        ZigBuildProject(Env, Projects)
 
 def EndBuilding(target, program = None):
     from mkdist import MkDist

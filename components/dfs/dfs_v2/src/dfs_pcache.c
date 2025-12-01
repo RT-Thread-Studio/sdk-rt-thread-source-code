@@ -13,16 +13,18 @@
 #define DBG_LVL DBG_WARNING
 #include <rtdbg.h>
 
-#include "dfs_pcache.h"
-#include "dfs_dentry.h"
-#include "dfs_mnt.h"
-#include "mm_page.h"
-#include <mmu.h>
-#include <tlb.h>
+#include <dfs_pcache.h>
+#include <dfs_dentry.h>
+#include <dfs_mnt.h>
 
 #include <rthw.h>
 
 #ifdef RT_USING_PAGECACHE
+
+#include <mm_page.h>
+#include <mm_private.h>
+#include <mmu.h>
+#include <tlb.h>
 
 #ifndef RT_PAGECACHE_COUNT
 #define RT_PAGECACHE_COUNT          4096
@@ -160,7 +162,7 @@ void dfs_pcache_release(size_t count)
     dfs_pcache_unlock();
 }
 
-void dfs_pcache_unmount(struct dfs_mnt *mnt)
+static void _pcache_clean(struct dfs_mnt *mnt, int (*cb)(struct dfs_aspace *aspace))
 {
     rt_list_t *node = RT_NULL;
     struct dfs_aspace *aspace = RT_NULL;
@@ -175,7 +177,7 @@ void dfs_pcache_unmount(struct dfs_mnt *mnt)
         if (aspace && aspace->mnt == mnt)
         {
             dfs_aspace_clean(aspace);
-            dfs_aspace_release(aspace);
+            cb(aspace);
         }
     }
 
@@ -187,11 +189,26 @@ void dfs_pcache_unmount(struct dfs_mnt *mnt)
         if (aspace && aspace->mnt == mnt)
         {
             dfs_aspace_clean(aspace);
-            dfs_aspace_release(aspace);
+            cb(aspace);
         }
     }
 
     dfs_pcache_unlock();
+}
+
+void dfs_pcache_unmount(struct dfs_mnt *mnt)
+{
+    _pcache_clean(mnt, dfs_aspace_release);
+}
+
+static int _dummy_cb(struct dfs_aspace *mnt)
+{
+    return 0;
+}
+
+void dfs_pcache_clean(struct dfs_mnt *mnt)
+{
+    _pcache_clean(mnt, _dummy_cb);
 }
 
 static int dfs_pcache_limit_check(void)
@@ -693,14 +710,15 @@ static int dfs_page_unmap(struct dfs_page *page)
     return 0;
 }
 
-static struct dfs_page *dfs_page_create(void)
+static struct dfs_page *dfs_page_create(off_t pos)
 {
     struct dfs_page *page = RT_NULL;
+    int affid = RT_PAGE_PICK_AFFID(pos);
 
     page = rt_calloc(1, sizeof(struct dfs_page));
     if (page)
     {
-        page->page = rt_pages_alloc_ext(0, PAGE_ANY_AVAILABLE);
+        page->page = rt_pages_alloc_tagged(0, affid, PAGE_ANY_AVAILABLE);
         if (page->page)
         {
             //memset(page->page, 0x00, ARCH_PAGE_SIZE);
@@ -991,12 +1009,12 @@ static struct dfs_page *dfs_aspace_load_page(struct dfs_file *file, off_t pos)
         struct dfs_vnode *vnode = file->vnode;
         struct dfs_aspace *aspace = vnode->aspace;
 
-        page = dfs_page_create();
+        page = dfs_page_create(pos);
         if (page)
         {
             page->aspace = aspace;
             page->size = ARCH_PAGE_SIZE;
-            page->fpos = pos / ARCH_PAGE_SIZE * ARCH_PAGE_SIZE;
+            page->fpos = RT_ALIGN_DOWN(pos, ARCH_PAGE_SIZE);
             aspace->ops->read(file, page);
             page->ref_count ++;
 
@@ -1105,7 +1123,7 @@ int dfs_aspace_read(struct dfs_file *file, void *buf, size_t count, off_t *pos)
                 }
 
                 len = count > len ? len : count;
-                if (len)
+                if (len > 0)
                 {
                     rt_memcpy(ptr, page->page + *pos - page->fpos, len);
                     ptr += len;
@@ -1138,13 +1156,20 @@ int dfs_aspace_write(struct dfs_file *file, const void *buf, size_t count, off_t
 
     if (file && file->vnode && file->vnode->aspace)
     {
-        if (!(file->vnode->aspace->ops->write))
-            return ret;
         struct dfs_vnode *vnode = file->vnode;
         struct dfs_aspace *aspace = vnode->aspace;
 
         struct dfs_page *page;
         char *ptr = (char *)buf;
+
+        if (!(aspace->ops->write))
+        {
+            return ret;
+        }
+        else if (aspace->mnt && (aspace->mnt->flags & MNT_RDONLY))
+        {
+            return -EROFS;
+        }
 
         ret = 0;
 
@@ -1380,7 +1405,8 @@ int dfs_aspace_unmap(struct dfs_file *file, struct rt_varea *varea)
 
                                 rt_varea_unmap_page(map_varea, vaddr);
 
-                                if (varea->attr == MMU_MAP_U_RWCB && page->fpos < page->aspace->vnode->size)
+                                if (!rt_varea_is_private_locked(varea) &&
+                                    page->fpos < page->aspace->vnode->size)
                                 {
                                     dfs_page_dirty(page);
                                 }
@@ -1425,7 +1451,7 @@ int dfs_aspace_page_unmap(struct dfs_file *file, struct rt_varea *varea, void *v
 
                 if (map && varea->aspace == map->aspace && vaddr == map->vaddr)
                 {
-                    if (varea->attr == MMU_MAP_U_RWCB)
+                    if (!rt_varea_is_private_locked(varea))
                     {
                         dfs_page_dirty(page);
                     }

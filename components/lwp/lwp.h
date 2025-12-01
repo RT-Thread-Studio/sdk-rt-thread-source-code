@@ -32,6 +32,7 @@
 #include "lwp_signal.h"
 #include "lwp_syscall.h"
 #include "lwp_avl.h"
+#include "lwp_args.h"
 #include "mm_aspace.h"
 
 #ifdef RT_USING_MUSLLIBC
@@ -196,6 +197,10 @@ struct rt_lwp
     unsigned int asid;
 #endif
     struct rusage rt_rusage;
+
+#ifdef RT_USING_VDSO
+    void *vdso_vbase;
+#endif
 };
 
 
@@ -237,6 +242,8 @@ void lwp_tid_dec_ref(rt_thread_t thread);
 void lwp_tid_set_thread(int tid, rt_thread_t thread);
 
 int lwp_execve(char *filename, int debug, int argc, char **argv, char **envp);
+int lwp_load(const char *filename, struct rt_lwp *lwp, uint8_t *load_addr, size_t addr_size, struct process_aux *aux);
+void lwp_user_obj_free(struct rt_lwp *lwp);
 
 /*create by lwp_setsid.c*/
 int setsid(void);
@@ -249,7 +256,7 @@ void lwp_user_setting_restore(rt_thread_t thread);
 void lwp_uthread_ctx_save(void *ctx);
 void lwp_uthread_ctx_restore(void);
 
-int lwp_setaffinity(pid_t pid, int cpu);
+int lwp_setaffinity(int tid, int cpu);
 
 pid_t exec(char *filename, int debug, int argc, char **argv);
 
@@ -333,6 +340,8 @@ int lwp_session_set_foreground(rt_session_t session, pid_t pgid);
 /* complete the job control related bussiness on process exit */
 void lwp_jobctrl_on_exit(struct rt_lwp *lwp);
 
+sysret_t lwp_teardown(struct rt_lwp *lwp, void (*cb)(void));
+
 #ifdef __cplusplus
 }
 #endif
@@ -370,6 +379,7 @@ void lwp_jobctrl_on_exit(struct rt_lwp *lwp);
 #define AT_RANDOM 25
 #define AT_HWCAP2 26
 #define AT_EXECFN 31
+#define AT_SYSINFO_EHDR 33
 
 struct process_aux_item
 {
@@ -380,15 +390,6 @@ struct process_aux_item
 struct process_aux
 {
     struct process_aux_item item[AUX_ARRAY_ITEMS_NR];
-};
-
-struct lwp_args_info
-{
-    char **argv;
-    char **envp;
-    int argc;
-    int envc;
-    int size;
 };
 
 struct dbg_ops_t

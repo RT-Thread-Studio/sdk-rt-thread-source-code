@@ -76,6 +76,7 @@ static void *_map_data_to_uspace(struct dfs_mmap2_args *mmap2, void *data, rt_er
         map_vaddr = (void *)((size_t)map_vaddr & ~ARCH_PAGE_MASK);
 
         k_flags = lwp_user_mm_flag_to_kernel(mmap2->flags);
+        k_flags = MMF_CREATE(k_flags, mmap2->min_align_size);
         k_attr = lwp_user_mm_attr_to_kernel(mmap2->prot);
 
         map_vaddr = _do_mmap(lwp, map_vaddr, map_size, k_attr, k_flags, mmap2->pgoffset, data, code);
@@ -152,6 +153,7 @@ static void on_varea_close(struct rt_varea *varea)
         if (rt_atomic_load(&(file->ref_count)) == 1)
         {
             dfs_file_close(file);
+            dfs_file_destroy(file);
         }
         else
         {
@@ -184,7 +186,7 @@ void page_read(struct rt_varea *varea, struct rt_aspace_io_msg *msg)
                varea->start, varea->size, varea->offset, varea->attr, varea->flag);
 
         ret = dfs_aspace_mmap_read(file, varea, msg);
-        if (ret > 0)
+        if (ret >= 0)
         {
             msg->response.status = MM_FAULT_STATUS_OK;
             if (ret < ARCH_PAGE_SIZE)

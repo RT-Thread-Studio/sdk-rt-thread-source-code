@@ -121,19 +121,30 @@ def AddOptions():
                 action = 'store_true',
                 default = False,
                 help = 'reset the project configurations to default')
-    AddOption('--pyconfig',
-                dest = 'pyconfig',
+    AddOption('--guiconfig', '--pyconfig',
+                dest = 'guiconfig',
                 action = 'store_true',
                 default = False,
                 help = 'Python GUI menuconfig for RT-Thread BSP')
-    AddOption('--pyconfig-silent',
-                dest = 'pyconfig-silent',
+    AddOption('--defconfig', '--pyconfig-silent',
+                dest = 'defconfig',
                 action = 'store_true',
                 default = False,
-                help = 'Don`t show pyconfig window')
-    if platform.system() != 'Windows':
-        AddOption('--menuconfig',
-                    dest = 'menuconfig',
-                    action = 'store_true',
-                    default = False,
-                    help = 'make menuconfig for RT-Thread BSP')
+                help = 'Don`t show Python GUI menuconfig window')
+    AddOption('--menuconfig',
+                dest = 'menuconfig',
+                action = 'store_true',
+                default = False,
+                help = 'make menuconfig for RT-Thread BSP')
+    AddOption('--cdb',
+                dest = 'cdb',
+                action = 'store_true',
+                default = False,
+                help = 'make compile_commands.json')
+    AddOption('--attach',
+                dest = 'attach',
+                type = 'string',
+                help = 'View attachconfig or add attach to.config.'+\
+                'e.g. scons --attach=? View all attachconfig for the current bsp.'+\
+                ' or scons --attach=component.cherryusb_cdc Set option component.cherryusb_cdc inside attachconfig to.config.'+\
+                ' or scons --attach=default Restore.config and rtconfig to before attch was set.')

@@ -109,7 +109,7 @@ typedef long (*syscall_func)(void);
 
 
 /**
- * @ingroup finsh
+ * @ingroup group_finsh
  *
  * This macro exports a system function to finsh shell.
  *
@@ -119,7 +119,7 @@ typedef long (*syscall_func)(void);
 #define FINSH_FUNCTION_EXPORT(name, desc)
 
 /**
- * @ingroup finsh
+ * @ingroup group_finsh
  *
  * This macro exports a system function with an alias name to finsh shell.
  *
@@ -130,13 +130,13 @@ typedef long (*syscall_func)(void);
 #define FINSH_FUNCTION_EXPORT_ALIAS(name, alias, desc)
 
 /**
- * @ingroup msh
+ * @ingroup group_finsh
  *
  * This macro exports a command to module shell.
  *
- * @param command is the name of the command.
- * @param desc is the description of the command, which will show in help list.
- * @param opt This is an option, enter any content to enable option completion
+ * param command is the name of the command.
+ * param desc is the description of the command, which will show in help list.
+ * param opt This is an option, enter any content to enable option completion
  */
 /* MSH_CMD_EXPORT(command, desc) or MSH_CMD_EXPORT(command, desc, opt) */
 #define MSH_CMD_EXPORT(...)                                 \
@@ -144,17 +144,18 @@ typedef long (*syscall_func)(void);
         _MSH_FUNCTION_CMD2)(__VA_ARGS__)
 
 /**
- * @ingroup msh
+ * @ingroup group_finsh
  *
  * This macro exports a command with alias to module shell.
  *
- * @param command is the name of the command.
- * @param alias is the alias of the command.
- * @param desc is the description of the command, which will show in help list.
- * @param opt This is an option, enter any content to enable option completion
- * @note
+ * param command is the name of the command.
+ * param alias is the alias of the command.
+ * param desc is the description of the command, which will show in help list.
+ * param opt This is an option, enter any content to enable option completion
+ * @code
  *      #define MSH_CMD_EXPORT_ALIAS(command, alias, desc) or
  *      #define MSH_CMD_EXPORT_ALIAS(command, alias, desc, opt)
+ * @endcode
  */
 #define MSH_CMD_EXPORT_ALIAS(...)                                           \
     __MSH_GET_EXPORT_MACRO(__VA_ARGS__, _MSH_FUNCTION_EXPORT_CMD3_OPT,      \
@@ -195,13 +196,21 @@ typedef struct msh_cmd_opt
  * Declares a static array of command options for a specific command.
  * @param command The command associated with these options.
  */
+#ifdef _MSC_VER
+#define CMD_OPTIONS_STATEMENT(command) static struct msh_cmd_opt command##_msh_options[16];
+#else
 #define CMD_OPTIONS_STATEMENT(command) static struct msh_cmd_opt command##_msh_options[];
+#endif
 
 /**
  * Starts the definition of command options for a specific command.
  * @param command The command these options are associated with.
  */
+#ifdef _MSC_VER
+#define CMD_OPTIONS_NODE_START(command) static struct msh_cmd_opt command##_msh_options[16] = {
+#else
 #define CMD_OPTIONS_NODE_START(command) static struct msh_cmd_opt command##_msh_options[] = {
+#endif
 
 /**
  * Defines a single command option.

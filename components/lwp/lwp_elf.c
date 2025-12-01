@@ -25,6 +25,10 @@
 #include <lwp_user_mm.h>
 #endif
 
+#ifdef RT_USING_VDSO
+#include <vdso.h>
+#endif
+
 #define DBG_TAG "load.elf"
 #ifdef ELF_DEBUG_ENABLE
 #define DBG_LVL DBG_LOG
@@ -47,11 +51,13 @@
 #define ELF_EXEC_LOAD_ADDR  USER_VADDR_START
 #define ELF_INTERP_LOAD_ADDR LDSO_LOAD_VADDR
 
-#define ELF_AUX_ENT(aux, id, val) \
-    do                  \
-    {                   \
-        *aux++ = id;    \
-        *aux++ = val;   \
+#define ELF_AUX_ENT(aux, id, val)                           \
+    do                                                      \
+    {                                                       \
+        rt_base_t a = id;                                   \
+        lwp_data_put(lwp, aux++, &a, sizeof(rt_ubase_t));   \
+        a = val;                                            \
+        lwp_data_put(lwp, aux++, &a, sizeof(rt_ubase_t));   \
     } while (0)
 
 typedef struct
@@ -570,7 +576,8 @@ static int elf_aux_fill(elf_load_info_t *load_info)
     elf_addr_t *aux_info;
     uint32_t random_value = rt_tick_get();
     size_t prot = PROT_READ | PROT_WRITE;
-    size_t flags = MAP_PRIVATE;
+    size_t flags = MAP_FIXED | MAP_PRIVATE;
+    rt_lwp_t lwp = load_info->lwp;
     void *va;
 
     if (!aux)
@@ -581,7 +588,7 @@ static int elf_aux_fill(elf_load_info_t *load_info)
     aux_info = (elf_addr_t *)aux->item;
     ELF_AUX_ENT(aux_info, AT_PAGESZ, ARCH_PAGE_SIZE);
 
-    va = lwp_mmap2(load_info->lwp, (void *)(USER_VADDR_TOP - ARCH_PAGE_SIZE * 2), ARCH_PAGE_SIZE, prot, flags, -1, 0);
+    va = lwp_mmap2(lwp, (void *)(USER_VADDR_TOP - ARCH_PAGE_SIZE * 2), ARCH_PAGE_SIZE, prot, flags, -1, 0);
     if (!va)
     {
         LOG_E("lwp map user failed!");
@@ -604,8 +611,15 @@ static int elf_aux_fill(elf_load_info_t *load_info)
     ELF_AUX_ENT(aux_info, AT_CLKTCK, 0);
     ELF_AUX_ENT(aux_info, AT_SECURE, 0);
 
-#ifdef ARCH_MM_MMU
-    rt_hw_cpu_dcache_ops(RT_HW_CACHE_FLUSH, aux, sizeof(*aux));
+#ifdef RT_USING_VDSO
+    if(RT_EOK == arch_setup_additional_pages(load_info->lwp))
+    {
+        ELF_AUX_ENT(aux_info, AT_SYSINFO_EHDR, (size_t)load_info->lwp->vdso_vbase);
+    }
+    else
+    {
+        LOG_W("vdso map error,VDSO currently only supports aarch64 architecture!");
+    }
 #endif
 
     return 0;
@@ -757,7 +771,7 @@ OUT:
 }
 
 int lwp_load(const char *filename, struct rt_lwp *lwp, uint8_t *load_addr, size_t addr_size,
-    struct process_aux *aux)
+    struct process_aux *aux_ua)
 {
     elf_load_info_t load_info = { 0 };
     int len;
@@ -789,7 +803,7 @@ int lwp_load(const char *filename, struct rt_lwp *lwp, uint8_t *load_addr, size_
     }
 
     load_info.lwp = lwp;
-    load_info.aux = aux;
+    load_info.aux = aux_ua;
 
     load_info.exec_info.fd = ELF_INVALID_FD;
     load_info.interp_info.fd = ELF_INVALID_FD;
