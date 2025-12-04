@@ -54,8 +54,13 @@
 
 /* restrict virtual address on usage of RT_NULL */
 #ifndef KERNEL_VADDR_START
-#define KERNEL_VADDR_START 0x1000
+#ifdef  KERNEL_ASPACE_START
+#define KERNEL_VADDR_START KERNEL_ASPACE_START
+#else
+#define KERNEL_VADDR_START (ARCH_RAM_OFFSET + ARCH_TEXT_OFFSET)
 #endif
+#endif /* KERNEL_VADDR_START */
+
 
 volatile unsigned long MMUTable[512] __attribute__((aligned(4 * 1024)));
 
@@ -283,7 +288,9 @@ void *rt_hw_mmu_map(rt_aspace_t aspace, void *v_addr, void *p_addr, size_t size,
 
     while (remaining_sz)
     {
-        if (((rt_ubase_t)v_addr & ARCH_SECTION_MASK) || (remaining_sz < ARCH_SECTION_SIZE))
+        if (((rt_ubase_t)v_addr & ARCH_SECTION_MASK) ||
+            ((rt_ubase_t)p_addr & ARCH_SECTION_MASK) ||
+            (remaining_sz < ARCH_SECTION_SIZE))
         {
             /* legacy 4k mapping */
             stride = ARCH_PAGE_SIZE;
@@ -474,7 +481,7 @@ void rt_hw_mmu_setup(rt_aspace_t aspace, struct mem_desc *mdesc, int desc_nr)
             attr = MMU_MAP_K_RWCB;
             break;
         case NORMAL_NOCACHE_MEM:
-            attr = MMU_MAP_K_RWCB;
+            attr = MMU_MAP_K_RW;
             break;
         case DEVICE_MEM:
             attr = MMU_MAP_K_DEVICE;
@@ -552,7 +559,7 @@ int rt_hw_mmu_map_init(rt_aspace_t aspace, void *v_address, size_t size,
         return -1;
     }
 
-    rt_aspace_init(aspace, (void *)KERNEL_VADDR_START, 0 - KERNEL_VADDR_START,
+    rt_aspace_init(aspace, (void *)KERNEL_VADDR_START, 0 - (rt_size_t) KERNEL_VADDR_START,
                    vtable);
 
     _init_region(v_address, size);

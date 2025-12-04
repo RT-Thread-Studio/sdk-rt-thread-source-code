@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2024 RT-Thread Development Team
+ * Copyright (c) 2006-2025 RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -19,10 +19,9 @@
 #include <drivers/core/driver.h>
 
 /**
- * @addtogroup group_Drivers RTTHREAD Driver
- * @defgroup group_SPI SPI
- *
+ * @defgroup    group_drivers_spi SPI
  * @brief       SPI driver api
+ * @ingroup     group_device_driver
  *
  * <b>Example</b>
  * @code {.c}
@@ -84,12 +83,10 @@
  * // 导出到 msh 命令列表中
  * MSH_CMD_EXPORT(spi_w25q_sample, spi w25q sample);
  * @endcode
- *
- * @ingroup group_Drivers
  */
 
 /*!
- * @addtogroup group_SPI
+ * @addtogroup group_drivers_spi
  * @{
  */
 #ifdef __cplusplus
@@ -316,6 +313,11 @@ rt_err_t rt_spi_driver_register(struct rt_spi_driver *driver);
 rt_err_t rt_spi_device_register(struct rt_spi_device *device);
 
 #define RT_SPI_DRIVER_EXPORT(driver)  RT_DRIVER_EXPORT(driver, spi, BUILIN)
+
+rt_inline const void *rt_spi_device_id_data(struct rt_spi_device *device)
+{
+    return device->id ? device->id->data : (device->ofw_id ? device->ofw_id->data : RT_NULL);
+}
 #endif /* RT_USING_DM */
 
 /**
@@ -347,6 +349,19 @@ rt_err_t rt_spi_bus_attach_device(struct rt_spi_device *device,
                                   const char           *bus_name,
                                   void                 *user_data);
 
+/**
+ * @brief Detach a device from the SPI bus.
+ *
+ * This function serves as the high-level API to detach a SPI device from its bus.
+ * It unregisters the device from the device framework and ensures all associated
+ * resources, such as the chip select pin, are properly released by calling
+ * the underlying implementation.
+ *
+ * @param device The SPI device to be detached.
+ *
+ * @return rt_err_t The result of the operation. RT_EOK on success, otherwise an error code.
+ */
+rt_err_t rt_spi_bus_detach_device(struct rt_spi_device *device);
 
 /**
  * @brief attach a device on SPI bus with CS pin
@@ -364,6 +379,21 @@ rt_err_t rt_spi_bus_attach_device_cspin(struct rt_spi_device *device,
                                         const char           *bus_name,
                                         rt_base_t             cs_pin,
                                         void                 *user_data);
+
+/**
+ * @brief Detach a device from the SPI bus and release its CS pin.
+ *
+ * This function provides the low-level implementation for detaching a device
+ * from the SPI bus. It specifically handles the operations for the chip select (CS)
+ * pin, resetting it to input mode to release it. This function is typically
+ * called by the higher-level rt_spi_bus_detach_device() and should not be
+ * called directly by the user application.
+ *
+ * @param device The SPI device to be detached.
+ *
+ * @return rt_err_t The result of the operation. RT_EOK on success, otherwise an error code.
+ */
+rt_err_t rt_spi_bus_detach_device_cspin(struct rt_spi_device *device);
 
 /**
  * @brief  Reconfigure the SPI bus for the specified device.
@@ -601,7 +631,7 @@ rt_err_t rt_qspi_bus_register(struct rt_spi_bus *bus, const char *name, const st
  *
  * @return the actual length of transmitted.
  */
-rt_size_t rt_qspi_transfer_message(struct rt_qspi_device  *device, struct rt_qspi_message *message);
+rt_ssize_t rt_qspi_transfer_message(struct rt_qspi_device  *device, struct rt_qspi_message *message);
 
 /**
  * @brief This function can send data then receive data from QSPI device
@@ -614,7 +644,7 @@ rt_size_t rt_qspi_transfer_message(struct rt_qspi_device  *device, struct rt_qsp
  *
  * @return the status of transmit.
  */
-rt_err_t rt_qspi_send_then_recv(struct rt_qspi_device *device, const void *send_buf, rt_size_t send_length,void *recv_buf, rt_size_t recv_length);
+rt_ssize_t rt_qspi_send_then_recv(struct rt_qspi_device *device, const void *send_buf, rt_size_t send_length,void *recv_buf, rt_size_t recv_length);
 
 /**
  * @brief This function can send data to QSPI device
@@ -625,7 +655,7 @@ rt_err_t rt_qspi_send_then_recv(struct rt_qspi_device *device, const void *send_
  *
  * @return the status of transmit.
  */
-rt_err_t rt_qspi_send(struct rt_qspi_device *device, const void *send_buf, rt_size_t length);
+rt_ssize_t rt_qspi_send(struct rt_qspi_device *device, const void *send_buf, rt_size_t length);
 
 #ifdef __cplusplus
 }

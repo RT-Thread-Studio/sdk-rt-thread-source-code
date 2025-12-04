@@ -14,11 +14,7 @@
 #include <rtdevice.h>
 
 /**
- * @addtogroup group_Drivers RTTHREAD Driver
- * @defgroup group_clk clk
- * @brief       clk driver api
- * @ingroup group_Drivers
- * @addtogroup  group_clk
+ * @addtogroup group_driver_clock
  * @{
  */
 

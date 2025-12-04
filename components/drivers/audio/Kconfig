@@ -14,4 +14,5 @@ config RT_USING_AUDIO
         config RT_AUDIO_RECORD_PIPE_SIZE
             int "Record pipe size"
             default 2048
+
     endif

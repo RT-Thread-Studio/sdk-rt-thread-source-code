@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2023, RT-Thread Development Team
+ * Copyright (c) 2006-2024 RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -12,13 +12,11 @@
 #define __DEV_SERIAL_V2_H__
 
 #include <rtthread.h>
-
-
+#include <rtdevice.h>
 /**
- * @addtogroup group_Drivers RTTHREAD Driver
- * @defgroup group_Serial_v2 Serial v2
- *
+ * @defgroup    group_drivers_serial_v2 Serial v2
  * @brief       Serial v2 driver api
+ * @ingroup     group_device_driver
  *
  * <b>Example</b>
  * @code {.c}
@@ -119,13 +117,11 @@
  * }
  * MSH_CMD_EXPORT(uart_dma_sample, uart device dma sample);
  * @endcode
- *
- * @ingroup group_Drivers
  */
 
 
 /*!
- * @addtogroup group_Serial_v2
+ * @addtogroup group_drivers_serial_v2
  * @{
  */
 
@@ -169,6 +165,9 @@
 #define NRZ_NORMAL                      0       /* Non Return to Zero : normal mode */
 #define NRZ_INVERTED                    1       /* Non Return to Zero : inverted mode */
 
+/**
+ * device flag
+ */
 #define RT_DEVICE_FLAG_RX_BLOCKING      0x1000
 #define RT_DEVICE_FLAG_RX_NON_BLOCKING  0x2000
 
@@ -180,20 +179,42 @@
 #define RT_SERIAL_TX_BLOCKING           RT_DEVICE_FLAG_TX_BLOCKING
 #define RT_SERIAL_TX_NON_BLOCKING       RT_DEVICE_FLAG_TX_NON_BLOCKING
 
+/**
+ * hw device control commands
+ */
 #define RT_DEVICE_CHECK_OPTMODE         0x20
 
+/**
+ * hw serial control commands
+ */
+#define RT_HW_SERIAL_CTRL_GETC                    0x01    /* Tx irq get char */
+#define RT_HW_SERIAL_CTRL_PUTC                    0x02    /* Rx irq put char */
+#define RT_HW_SERIAL_CTRL_GET_DMA_PING_BUF        0x03    /* Get DMA ping-pong buffer */
+
+/**
+ * hw isr event
+ */
 #define RT_SERIAL_EVENT_RX_IND          0x01    /* Rx indication */
 #define RT_SERIAL_EVENT_TX_DONE         0x02    /* Tx complete   */
 #define RT_SERIAL_EVENT_RX_DMADONE      0x03    /* Rx DMA transfer done */
 #define RT_SERIAL_EVENT_TX_DMADONE      0x04    /* Tx DMA transfer done */
-#define RT_SERIAL_EVENT_RX_TIMEOUT      0x05    /* Rx timeout    */
+
+/**
+ * device commands
+ * 0x40 -      special device control commands
+ */
+#define RT_SERIAL_CTRL_SET_RX_TIMEOUT           0x41    /* set Rx timeout. Call before rt_device_read. not supported in poll mode */
+#define RT_SERIAL_CTRL_SET_TX_TIMEOUT           0x42    /* set Tx timeout. Call before rt_device_write. not supported in poll mode */
+#define RT_SERIAL_CTRL_GET_RX_TIMEOUT           0x43    /* get Rx timeout. not supported in poll mode */
+#define RT_SERIAL_CTRL_GET_TX_TIMEOUT           0x44    /* get Tx timeout. not supported in poll mode */
+#define RT_SERIAL_CTRL_RX_FLUSH                 0x45    /* clear rx buffer. Discard all data */
+#define RT_SERIAL_CTRL_TX_FLUSH                 0x46    /* clear tx buffer. Blocking and wait for the send buffer data to be sent. not supported in poll mode */
+#define RT_SERIAL_CTRL_GET_UNREAD_BYTES_COUNT   0x47    /* get unread bytes count. not supported in poll mode */
+#define RT_SERIAL_CTRL_GET_CONFIG               0x48    /* get serial config */
 
 #define RT_SERIAL_ERR_OVERRUN           0x01
 #define RT_SERIAL_ERR_FRAMING           0x02
 #define RT_SERIAL_ERR_PARITY            0x03
-
-#define RT_SERIAL_TX_DATAQUEUE_SIZE     2048
-#define RT_SERIAL_TX_DATAQUEUE_LWM      30
 
 #define RT_SERIAL_RX_MINBUFSZ 64
 #define RT_SERIAL_TX_MINBUFSZ 64
@@ -205,6 +226,7 @@
 #define RT_SERIAL_FLOWCONTROL_NONE      0
 
 /* Default config for serial_configure structure */
+#ifdef RT_SERIAL_USING_DMA
 #define RT_SERIAL_CONFIG_DEFAULT                      \
 {                                                     \
     BAUD_RATE_115200,           /* 115200 bits/s */   \
@@ -216,8 +238,24 @@
     RT_SERIAL_RX_MINBUFSZ,      /* rxBuf size */      \
     RT_SERIAL_TX_MINBUFSZ,      /* txBuf size */      \
     RT_SERIAL_FLOWCONTROL_NONE, /* Off flowcontrol */ \
-    0                                                 \
+    0,                          /* reserved */        \
+    RT_SERIAL_RX_MINBUFSZ / 2,  /* dma_ping_bufsz */  \
 }
+#else
+#define RT_SERIAL_CONFIG_DEFAULT                      \
+{                                                     \
+    BAUD_RATE_115200,           /* 115200 bits/s */   \
+    DATA_BITS_8,                /* 8 databits */      \
+    STOP_BITS_1,                /* 1 stopbit */       \
+    PARITY_NONE,                /* No parity  */      \
+    BIT_ORDER_LSB,              /* LSB first sent */  \
+    NRZ_NORMAL,                 /* Normal mode */     \
+    RT_SERIAL_RX_MINBUFSZ,      /* rxBuf size */      \
+    RT_SERIAL_TX_MINBUFSZ,      /* txBuf size */      \
+    RT_SERIAL_FLOWCONTROL_NONE, /* Off flowcontrol */ \
+    0,                          /* reserved */        \
+}
+#endif
 
 /**
  * @brief Serial receive indicate hook function type
@@ -239,6 +277,10 @@ struct serial_configure
     rt_uint32_t tx_bufsz                :16;
     rt_uint32_t flowcontrol             :1;
     rt_uint32_t reserved                :5;
+
+#ifdef RT_SERIAL_USING_DMA
+    rt_uint32_t dma_ping_bufsz          :16;
+#endif
 };
 
 /**
@@ -248,12 +290,15 @@ struct rt_serial_rx_fifo
 {
     struct rt_ringbuffer rb;
 
+#ifdef RT_SERIAL_USING_DMA
+    struct rt_ringbuffer dma_ping_rb;
+#endif
+
     struct rt_completion rx_cpt;
 
-    rt_uint16_t rx_cpt_index;
+    rt_size_t rx_cpt_index;
 
-    /* software fifo */
-    rt_uint8_t buffer[];
+    rt_atomic_t rx_timeout;
 };
 
 /**
@@ -264,14 +309,13 @@ struct rt_serial_tx_fifo
 {
     struct rt_ringbuffer rb;
 
-    rt_size_t put_size;
-
-    rt_bool_t activated;
-
     struct rt_completion tx_cpt;
 
-    /* software fifo */
-    rt_uint8_t buffer[];
+    rt_size_t put_size;
+
+    rt_atomic_t tx_timeout;
+
+    rt_atomic_t activated;
 };
 
 /**
@@ -288,7 +332,17 @@ struct rt_serial_device
     void *serial_rx;
     void *serial_tx;
 
+    struct rt_spinlock spinlock;
+
+#ifdef RT_USING_SERIAL_BYPASS
+    struct rt_serial_bypass* bypass;
+#endif
+
     struct rt_device_notify rx_notify;
+
+#ifdef RT_USING_POSIX_STDIO
+    rt_bool_t is_posix_mode;
+#endif
 };
 
 /**
@@ -317,10 +371,11 @@ struct rt_uart_ops
  * @brief Serial interrupt service routine
  * @param serial    serial device
  * @param event     event mask
- * @ingroup group_Serial_v2
+ * @ingroup group_drivers_serial_v2
  */
 void rt_hw_serial_isr(struct rt_serial_device *serial, int event);
 
+rt_err_t rt_hw_serial_control_isr(struct rt_serial_device *serial, int cmd, void *args);
 
 /**
  * @brief Register a serial device to device list
@@ -332,7 +387,7 @@ void rt_hw_serial_isr(struct rt_serial_device *serial, int event);
  * @return rt_err_t        error code
  * @note This function will register a serial device to system device list,
  *       and add a device object to system object list.
- * @ingroup group_Serial_v2
+ * @ingroup group_drivers_serial_v2
  */
 rt_err_t rt_hw_serial_register(struct rt_serial_device      *serial,
                                const  char                  *name,
@@ -345,7 +400,7 @@ rt_err_t rt_hw_serial_register(struct rt_serial_device      *serial,
  * @param serial    serial device
  * @return rt_err_t error code
  *
- * @ingroup group_Serial_v2
+ * @ingroup group_drivers_serial_v2
  */
 rt_err_t rt_hw_serial_register_tty(struct rt_serial_device *serial);
 

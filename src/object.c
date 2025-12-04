@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2021, RT-Thread Development Team
+ * Copyright (c) 2006-2025, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -28,6 +28,10 @@
 #ifdef RT_USING_SMART
 #include <lwp.h>
 #endif
+
+#define DBG_TAG           "kernel.obj"
+#define DBG_LVL           DBG_ERROR
+#include <rtdbg.h>
 
 struct rt_custom_object
 {
@@ -152,10 +156,9 @@ void (*rt_object_take_hook)(struct rt_object *object);
 void (*rt_object_put_hook)(struct rt_object *object);
 
 /**
- * @addtogroup group_Hook
+ * @addtogroup group_hook
+ * @{
  */
-
-/**@{*/
 
 /**
  * @brief This function will set a hook function, which will be invoked when object
@@ -227,14 +230,13 @@ void rt_object_put_sethook(void (*hook)(struct rt_object *object))
     rt_object_put_hook = hook;
 }
 
-/**@}*/
+/** @} group_hook */
 #endif /* RT_USING_HOOK */
 
 /**
- * @addtogroup group_KernelObject
+ * @addtogroup group_object_management
+ * @{
  */
-
-/**@{*/
 
 /**
  * @brief This function will return the specified type of object information.
@@ -335,17 +337,27 @@ RTM_EXPORT(rt_object_get_pointers);
  * @brief This function will initialize an object and add it to object system
  *        management.
  *
- * @param object is the specified object to be initialized.
+ * @param object The specified object to be initialized.
+ *               The object pointer that needs to be initialized must point to
+ *               a specific object memory block, not a null pointer or a wild pointer.
  *
- * @param type is the object type.
+ * @param type The object type. The type of the object must be a enumeration
+ *             type listed in rt_object_class_type, RT_Object_Class_Static
+ *             excluded. (For static objects, or objects initialized with the
+ *             rt_object_init interface, the system identifies it as an
+ *             RT_Object_Class_Static type)
  *
- * @param name is the object name. In system, the object's name must be unique.
+ * @param name Name of the object. In system, the object's name must be unique.
+ *             Each object can be set to a name, and the maximum length for the
+ *             name is specified by RT_NAME_MAX. The system does not care if it
+ *             uses '\0' as a terminal symbol.
  */
 void rt_object_init(struct rt_object         *object,
                     enum rt_object_class_type type,
                     const char               *name)
 {
     rt_base_t level;
+    rt_size_t obj_name_len;
 #ifdef RT_DEBUGING_ASSERT
     struct rt_list_node *node = RT_NULL;
 #endif /* RT_DEBUGING_ASSERT */
@@ -381,10 +393,24 @@ void rt_object_init(struct rt_object         *object,
     /* set object type to static */
     object->type = type | RT_Object_Class_Static;
 #if RT_NAME_MAX > 0
-    rt_strncpy(object->name, name, RT_NAME_MAX);  /* copy name */
+    if (name)
+    {
+        obj_name_len = rt_strlen(name);
+        if(obj_name_len > RT_NAME_MAX - 1)
+        {
+            LOG_E("Object name %s exceeds RT_NAME_MAX=%d, consider increasing RT_NAME_MAX.", name, RT_NAME_MAX);
+            RT_ASSERT(obj_name_len <= RT_NAME_MAX - 1);
+        }
+        rt_memcpy(object->name, name, obj_name_len);
+        object->name[obj_name_len] = '\0';
+    }
+    else
+    {
+        object->name[0] = '\0';
+    }
 #else
     object->name = name;
-#endif /* RT_NAME_MAX > 0 */
+#endif
 
     RT_OBJECT_HOOK_CALL(rt_object_attach_hook, (object));
 
@@ -436,16 +462,23 @@ void rt_object_detach(rt_object_t object)
 /**
  * @brief This function will allocate an object from object system.
  *
- * @param type is the type of object.
+ * @param type Type of object. The type of the allocated object can only be of
+ *             type rt_object_class_type other than RT_Object_Class_Static.
+ *             In addition, the type of object allocated through this interface
+ *             is dynamic, not static.
  *
- * @param name is the object name. In system, the object's name must be unique.
+ * @param name Name of the object. In system, the object's name must be unique.
+ *             Each object can be set to a name, and the maximum length for the
+ *             name is specified by RT_NAME_MAX. The system does not care if it
+ *             uses '\0' as a terminal symbol.
  *
- * @return object
+ * @return object handle allocated successfully, or RT_NULL if no memory can be allocated.
  */
 rt_object_t rt_object_allocate(enum rt_object_class_type type, const char *name)
 {
     struct rt_object *object;
     rt_base_t level;
+    rt_size_t obj_name_len;
     struct rt_object_information *information;
 #ifdef RT_USING_MODULE
     struct rt_dlmodule *module = dlmodule_self();
@@ -476,10 +509,24 @@ rt_object_t rt_object_allocate(enum rt_object_class_type type, const char *name)
     object->flag = 0;
 
 #if RT_NAME_MAX > 0
-    rt_strncpy(object->name, name, RT_NAME_MAX - 1); /* copy name */
+    if (name)
+    {
+        obj_name_len = rt_strlen(name);
+        if(obj_name_len > RT_NAME_MAX - 1)
+        {
+            LOG_E("Object name %s exceeds RT_NAME_MAX=%d, consider increasing RT_NAME_MAX.", name, RT_NAME_MAX);
+            RT_ASSERT(obj_name_len <= RT_NAME_MAX - 1);
+        }
+        rt_memcpy(object->name, name, obj_name_len);
+        object->name[obj_name_len] = '\0';
+    }
+    else
+    {
+        object->name[0] = '\0';
+    }
 #else
     object->name = name;
-#endif /* RT_NAME_MAX > 0 */
+#endif
 
     RT_OBJECT_HOOK_CALL(rt_object_attach_hook, (object));
 
@@ -505,7 +552,7 @@ rt_object_t rt_object_allocate(enum rt_object_class_type type, const char *name)
 /**
  * @brief This function will delete an object and release object memory.
  *
- * @param object is the specified object to be deleted.
+ * @param object The specified object to be deleted.
  */
 void rt_object_delete(rt_object_t object)
 {
@@ -543,7 +590,7 @@ void rt_object_delete(rt_object_t object)
  * @note  Normally, the system object is a static object and the type
  *        of object set to RT_Object_Class_Static.
  *
- * @param object is the specified object to be judged.
+ * @param object The specified object to be judged.
  *
  * @return RT_TRUE if a system object, RT_FALSE for others.
  */
@@ -635,7 +682,13 @@ static rt_err_t _match_name(struct rt_object *obj, void *data)
 {
     struct _obj_find_param *param = data;
     const char *name = param->match_name;
-    if (rt_strncmp(obj->name, name, RT_NAME_MAX) == 0)
+    char truncated_name[RT_NAME_MAX];
+
+    /* Truncate input name to RT_NAME_MAX - 1 to match object name storage */
+    rt_strncpy(truncated_name, name, RT_NAME_MAX - 1);
+    truncated_name[RT_NAME_MAX - 1] = '\0';
+
+    if (rt_strcmp(obj->name, truncated_name) == 0)
     {
         param->matched_obj = obj;
 
@@ -668,7 +721,8 @@ rt_object_t rt_object_find(const char *name, rt_uint8_t type)
     };
 
     /* parameter check */
-    if (name == RT_NULL) return RT_NULL;
+    if (name == RT_NULL || rt_object_get_information(type) == RT_NULL)
+        return RT_NULL;
 
     /* which is invoke in interrupt status */
     RT_DEBUG_NOT_IN_INTERRUPT;
@@ -694,7 +748,9 @@ rt_err_t rt_object_get_name(rt_object_t object, char *name, rt_uint8_t name_size
     if ((object != RT_NULL) && (name != RT_NULL) && (name_size != 0U))
     {
         const char *obj_name = object->name;
-        (void) rt_strncpy(name, obj_name, (rt_size_t)name_size);
+        rt_strncpy(name, obj_name, (rt_size_t)name_size);
+        /* Ensure null-termination */
+        name[name_size - 1] = '\0';
         result = RT_EOK;
     }
 
@@ -756,4 +812,5 @@ rt_err_t rt_custom_object_destroy(rt_object_t obj)
 }
 #endif
 
-/**@}*/
+/** @} group_object_management */
+

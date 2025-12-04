@@ -80,12 +80,12 @@ KEY FEATURES
 
 - Peripherals
   
-  - LED：PC13
+  - LED：PB2
   
 - Debug IO interface type: ST-LINK V2 (SWD)
 
 
-![board](figures/Bluepill_pinout.png)
+![board](figures/Bluepill_pinout_v2.png)
 
 
 
@@ -94,6 +94,14 @@ KEY FEATURES
 ## 3 Quickly Get Started
 
 This BSP provides MDK4, MDK5, and IAR projects for developers and it supports the GCC development environment. Here's an example of the MDK5 development environment, to introduce how to run the system.
+
+**Attention please！！！**
+
+Before the compilation work, please open ENV and execute the following command (this command is used to pull the necessary HAL library and CMSIS library, otherwise it cannot be compiled)：
+
+```bash
+pkgs --update
+```
 
 ### 3.1 Use ST-LINK Debugger to connect the Blue Pill Board
 

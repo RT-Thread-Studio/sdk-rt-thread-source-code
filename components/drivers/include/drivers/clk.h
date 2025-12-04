@@ -18,11 +18,13 @@
 #include <drivers/ofw.h>
 
 /**
- * @addtogroup group_Drivers RTTHREAD Driver
- * @defgroup group_clk clk
- * @brief       clk driver api
- * @ingroup group_Drivers
- * @addtogroup  group_clk
+ * @defgroup    group_driver_clock Clock
+ * @brief       Clock driver API
+ * @ingroup     group_device_driver
+ */
+
+/**
+ * @addtogroup  group_driver_clock
  * @{
  */
 
