@@ -15,10 +15,6 @@
 #define usb_hw_set   hw_set_alias(usb_hw)
 #define usb_hw_clear hw_clear_alias(usb_hw)
 
-#ifndef CONFIG_USBDEV_EP_NUM
-#define CONFIG_USBDEV_EP_NUM 16
-#endif
-
 #ifndef FORCE_VBUS_DETECT
 #define FORCE_VBUS_DETECT 1
 #endif
@@ -43,8 +39,8 @@ struct rp2040_ep_state {
 /* Driver state */
 struct rp2040_udc {
     volatile uint8_t dev_addr;
-    struct rp2040_ep_state in_ep[CONFIG_USBDEV_EP_NUM];  /*!< IN endpoint parameters*/
-    struct rp2040_ep_state out_ep[CONFIG_USBDEV_EP_NUM]; /*!< OUT endpoint parameters */
+    struct rp2040_ep_state in_ep[USB_NUM_ENDPOINTS];  /*!< IN endpoint parameters*/
+    struct rp2040_ep_state out_ep[USB_NUM_ENDPOINTS]; /*!< OUT endpoint parameters */
     struct usb_setup_packet setup;                       /*!< Setup package that may be used in interrupt processing (outside the protocol stack) */
 } g_rp2040_udc;
 
@@ -125,7 +121,7 @@ int usb_dc_init(uint8_t busid)
     g_rp2040_udc.out_ep[0].endpoint_control = NULL;
     g_rp2040_udc.out_ep[0].data_buffer = &usb_dpram->ep0_buf_a[0];
 
-    for (uint32_t i = 0; i < CONFIG_USBDEV_EP_NUM; i++) {
+    for (uint32_t i = 0; i < USB_NUM_ENDPOINTS; i++) {
         g_rp2040_udc.in_ep[i].buffer_control = &usb_dpram->ep_buf_ctrl[i].in;
         g_rp2040_udc.out_ep[i].buffer_control = &usb_dpram->ep_buf_ctrl[i].out;
 
@@ -137,7 +133,7 @@ int usb_dc_init(uint8_t busid)
 
     next_buffer_ptr = &usb_dpram->epx_data[0];
 
-    for (uint32_t i = 1; i < CONFIG_USBDEV_EP_NUM; i++) {
+    for (uint32_t i = 1; i < USB_NUM_ENDPOINTS; i++) {
         g_rp2040_udc.in_ep[i].data_buffer = next_buffer_ptr;
         if (i == 1) {
             next_buffer_ptr += 1024; /* for iso video */
@@ -180,6 +176,10 @@ int usb_dc_init(uint8_t busid)
     usb_hw->inte = USB_INTS_BUFF_STATUS_BITS | USB_INTS_BUS_RESET_BITS | USB_INTS_SETUP_REQ_BITS |
                    USB_INTS_DEV_SUSPEND_BITS | USB_INTS_DEV_RESUME_FROM_HOST_BITS |
                    (FORCE_VBUS_DETECT ? 0 : USB_INTS_DEV_CONN_DIS_BITS);
+
+#ifdef CONFIG_USBDEV_SOF_ENABLE
+    usb_hw->inte |= USB_INTS_DEV_SOF_BITS;
+#endif
 
     // Enable USB interrupt at processor
     irq_set_enabled(USBCTRL_IRQ, true);
@@ -537,7 +537,7 @@ void USBD_IRQHandler(uint8_t busid)
 
         usb_hw->dev_addr_ctrl = 0;
 
-        for (uint8_t i = 0; i < CONFIG_USBDEV_EP_NUM - 1; i++) {
+        for (uint8_t i = 0; i < USB_NUM_ENDPOINTS - 1; i++) {
             /*!< Start at ep1 */
             usb_dpram->ep_ctrl[i].in = 0;
             usb_dpram->ep_ctrl[i].out = 0;
@@ -576,6 +576,13 @@ void USBD_IRQHandler(uint8_t busid)
         usb_hw_clear->sie_status = USB_SIE_STATUS_RESUME_BITS;
         usbd_event_resume_handler(0);
     }
+
+#ifdef CONFIG_USBDEV_SOF_ENABLE
+    if (status & USB_INTS_DEV_SOF_BITS) {
+        handled |= USB_INTS_DEV_SOF_BITS;
+        usbd_event_sof_handler(0);
+    }
+#endif
 
     if (status ^ handled) {
         USB_LOG_INFO("Unhandled IRQ 0x%x\n", (uint32_t)(status ^ handled));

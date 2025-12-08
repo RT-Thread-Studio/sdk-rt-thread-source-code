@@ -14,7 +14,7 @@
 #include <rtthread.h>
 #include <rtdevice.h>
 /**
- * @defgroup    group_Serial_v2 Serial v2
+ * @defgroup    group_drivers_serial_v2 Serial v2
  * @brief       Serial v2 driver api
  * @ingroup     group_device_driver
  *
@@ -121,7 +121,7 @@
 
 
 /*!
- * @addtogroup group_Serial_v2
+ * @addtogroup group_drivers_serial_v2
  * @{
  */
 
@@ -210,6 +210,7 @@
 #define RT_SERIAL_CTRL_RX_FLUSH                 0x45    /* clear rx buffer. Discard all data */
 #define RT_SERIAL_CTRL_TX_FLUSH                 0x46    /* clear tx buffer. Blocking and wait for the send buffer data to be sent. not supported in poll mode */
 #define RT_SERIAL_CTRL_GET_UNREAD_BYTES_COUNT   0x47    /* get unread bytes count. not supported in poll mode */
+#define RT_SERIAL_CTRL_GET_CONFIG               0x48    /* get serial config */
 
 #define RT_SERIAL_ERR_OVERRUN           0x01
 #define RT_SERIAL_ERR_FRAMING           0x02
@@ -225,6 +226,7 @@
 #define RT_SERIAL_FLOWCONTROL_NONE      0
 
 /* Default config for serial_configure structure */
+#ifdef RT_SERIAL_USING_DMA
 #define RT_SERIAL_CONFIG_DEFAULT                      \
 {                                                     \
     BAUD_RATE_115200,           /* 115200 bits/s */   \
@@ -237,8 +239,23 @@
     RT_SERIAL_TX_MINBUFSZ,      /* txBuf size */      \
     RT_SERIAL_FLOWCONTROL_NONE, /* Off flowcontrol */ \
     0,                          /* reserved */        \
-    0,                          /* dma_ping_bufsz */  \
+    RT_SERIAL_RX_MINBUFSZ / 2,  /* dma_ping_bufsz */  \
 }
+#else
+#define RT_SERIAL_CONFIG_DEFAULT                      \
+{                                                     \
+    BAUD_RATE_115200,           /* 115200 bits/s */   \
+    DATA_BITS_8,                /* 8 databits */      \
+    STOP_BITS_1,                /* 1 stopbit */       \
+    PARITY_NONE,                /* No parity  */      \
+    BIT_ORDER_LSB,              /* LSB first sent */  \
+    NRZ_NORMAL,                 /* Normal mode */     \
+    RT_SERIAL_RX_MINBUFSZ,      /* rxBuf size */      \
+    RT_SERIAL_TX_MINBUFSZ,      /* txBuf size */      \
+    RT_SERIAL_FLOWCONTROL_NONE, /* Off flowcontrol */ \
+    0,                          /* reserved */        \
+}
+#endif
 
 /**
  * @brief Serial receive indicate hook function type
@@ -317,7 +334,15 @@ struct rt_serial_device
 
     struct rt_spinlock spinlock;
 
+#ifdef RT_USING_SERIAL_BYPASS
+    struct rt_serial_bypass* bypass;
+#endif
+
     struct rt_device_notify rx_notify;
+
+#ifdef RT_USING_POSIX_STDIO
+    rt_bool_t is_posix_mode;
+#endif
 };
 
 /**
@@ -346,7 +371,7 @@ struct rt_uart_ops
  * @brief Serial interrupt service routine
  * @param serial    serial device
  * @param event     event mask
- * @ingroup group_Serial_v2
+ * @ingroup group_drivers_serial_v2
  */
 void rt_hw_serial_isr(struct rt_serial_device *serial, int event);
 
@@ -362,7 +387,7 @@ rt_err_t rt_hw_serial_control_isr(struct rt_serial_device *serial, int cmd, void
  * @return rt_err_t        error code
  * @note This function will register a serial device to system device list,
  *       and add a device object to system object list.
- * @ingroup group_Serial_v2
+ * @ingroup group_drivers_serial_v2
  */
 rt_err_t rt_hw_serial_register(struct rt_serial_device      *serial,
                                const  char                  *name,
@@ -375,7 +400,7 @@ rt_err_t rt_hw_serial_register(struct rt_serial_device      *serial,
  * @param serial    serial device
  * @return rt_err_t error code
  *
- * @ingroup group_Serial_v2
+ * @ingroup group_drivers_serial_v2
  */
 rt_err_t rt_hw_serial_register_tty(struct rt_serial_device *serial);
 

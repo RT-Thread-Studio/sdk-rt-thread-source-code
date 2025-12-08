@@ -29,7 +29,7 @@ static void (*rt_mp_alloc_hook)(struct rt_mempool *mp, void *block);
 static void (*rt_mp_free_hook)(struct rt_mempool *mp, void *block);
 
 /**
- * @addtogroup group_Hook
+ * @addtogroup group_hook
  */
 
 /**@{*/
@@ -60,7 +60,7 @@ void rt_mp_free_sethook(void (*hook)(struct rt_mempool *mp, void *block))
 #endif /* RT_USING_HOOK */
 
 /**
- * @addtogroup group_MM
+ * @addtogroup group_memory_management
  */
 
 /**@{*/
@@ -314,13 +314,14 @@ void *rt_mp_alloc(rt_mp_t mp, rt_int32_t time)
 
         if (time > 0)
         {
+            rt_tick_t time_tick = time;
             /* get the start tick of timer */
             before_sleep = rt_tick_get();
 
             /* init thread timer and start it */
             rt_timer_control(&(thread->thread_timer),
                              RT_TIMER_CTRL_SET_TIME,
-                             &time);
+                             &time_tick);
             rt_timer_start(&(thread->thread_timer));
         }
 

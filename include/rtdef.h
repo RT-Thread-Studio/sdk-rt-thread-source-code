@@ -75,7 +75,7 @@ extern "C" {
 #endif
 
 /**
- * @addtogroup group_BasicDef
+ * @addtogroup group_basic_definition
  */
 
 /**@{*/
@@ -83,7 +83,7 @@ extern "C" {
 /* RT-Thread version information */
 #define RT_VERSION_MAJOR                5               /**< Major version number (X.x.x) */
 #define RT_VERSION_MINOR                2               /**< Minor version number (x.X.x) */
-#define RT_VERSION_PATCH                1               /**< Patch version number (x.x.X) */
+#define RT_VERSION_PATCH                2               /**< Patch version number (x.x.X) */
 
 /* e.g. #if (RTTHREAD_VERSION >= RT_VERSION_CHECK(4, 1, 0) */
 #define RT_VERSION_CHECK(major, minor, revise)          ((major * 10000U) + (minor * 100U) + revise)
@@ -235,7 +235,7 @@ typedef int (*init_fn_t)(void);
 #endif /* RT_KERNEL_REALLOC */
 
 /**
- * @ingroup group_BasicDef
+ * @ingroup group_basic_definition
  *
  * @def RT_IS_ALIGN(addr, align)
  * Return true(1) or false(0).
@@ -246,7 +246,7 @@ typedef int (*init_fn_t)(void);
 #define RT_IS_ALIGN(addr, align) ((!(addr & (align - 1))) && (addr != RT_NULL))
 
 /**
- * @ingroup group_BasicDef
+ * @ingroup group_basic_definition
  *
  * @def RT_ALIGN(size, align)
  * Return the most contiguous size aligned at specified width. RT_ALIGN(13, 4)
@@ -256,7 +256,7 @@ typedef int (*init_fn_t)(void);
 #define RT_ALIGN(size, align)           (((size) + (align) - 1) & ~((align) - 1))
 
 /**
- * @ingroup group_BasicDef
+ * @ingroup group_basic_definition
  *
  * @def RT_ALIGN_DOWN(size, align)
  * Return the down number of aligned at specified width. RT_ALIGN_DOWN(13, 4)
@@ -266,10 +266,9 @@ typedef int (*init_fn_t)(void);
 #define RT_ALIGN_DOWN(size, align)      ((size) & ~((align) - 1))
 
 /**
- * @addtogroup group_KernelObject
+ * @addtogroup group_object_management
+ * @{
  */
-
-/**@{*/
 
 /*
  * kernel object macros
@@ -512,10 +511,10 @@ struct rt_object_information
 #define RT_OBJECT_HOOKLIST_CALL(name, argv)
 #endif /* RT_USING_HOOKLIST */
 
-/**@}*/
+/** @} group_object_management */
 
 /**
- * @addtogroup group_Clock
+ * @addtogroup group_clock_management
  */
 
 /**@{*/
@@ -578,7 +577,7 @@ typedef struct rt_timer *rt_timer_t;
 /**@}*/
 
 /**
- * @addtogroup group_Signal
+ * @addtogroup group_signal
  */
 /**@{*/
 
@@ -591,10 +590,9 @@ typedef void (*rt_sighandler_t)(int signo);
 /**@}*/
 
 /**
- * @addtogroup group_Thread
+ * @addtogroup group_thread_management
+ * @{
  */
-
-/**@{*/
 
 /*
  * Thread
@@ -848,9 +846,8 @@ struct rt_user_context
 typedef void (*rt_thread_cleanup_t)(struct rt_thread *tid);
 
 /**
- * Thread structure
+ * @brief Thread Control Block
  */
-
 struct rt_thread
 {
     struct rt_object            parent;
@@ -895,10 +892,6 @@ struct rt_thread
     rt_sighandler_t             *sig_vectors;           /**< vectors of signal handler */
     void                        *si_list;               /**< the signal infor list */
 #endif /* RT_USING_SIGNALS */
-
-#ifdef RT_USING_CPU_USAGE
-    rt_uint64_t                 duration_tick;          /**< cpu usage tick */
-#endif /* RT_USING_CPU_USAGE */
 
 #ifdef RT_USING_PTHREADS
     void                        *pthread_data;          /**< the handle of pthread data, adapt 32/64bit */
@@ -961,10 +954,10 @@ typedef struct rt_thread *rt_thread_t;
 #define LWP_IS_USER_MODE(t) (0)
 #endif /* RT_USING_SMART */
 
-/**@}*/
+/** @} group_thread_management */
 
 /**
- * @addtogroup group_IPC
+ * @addtogroup group_thread_comm
  */
 
 /**@{*/
@@ -972,8 +965,8 @@ typedef struct rt_thread *rt_thread_t;
 /**
  * IPC flags and control command definitions
  */
-#define RT_IPC_FLAG_FIFO                0x00            /**< FIFOed IPC. @ref group_IPC. */
-#define RT_IPC_FLAG_PRIO                0x01            /**< PRIOed IPC. @ref group_IPC. */
+#define RT_IPC_FLAG_FIFO                0x00            /**< FIFOed IPC. @ref group_thread_comm. */
+#define RT_IPC_FLAG_PRIO                0x01            /**< PRIOed IPC. @ref group_thread_comm. */
 
 #define RT_IPC_CMD_UNKNOWN              0x00            /**< unknown IPC command */
 #define RT_IPC_CMD_RESET                0x01            /**< reset IPC object */
@@ -1134,7 +1127,7 @@ typedef struct rt_messagequeue *rt_mq_t;
 /**@}*/
 
 /**
- * @addtogroup group_MM
+ * @addtogroup group_memory_management
  */
 
 /**@{*/

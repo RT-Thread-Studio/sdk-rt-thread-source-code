@@ -47,7 +47,7 @@ extern "C" {
 #define CLASS_INFO_DEFINE __attribute__((section(".usbh_class_info"))) __USED __ALIGNED(1)
 #endif
 
-#define USBH_GET_URB_INTERVAL(interval, speed) (speed < USB_SPEED_HIGH ? interval : (1 << (interval - 1)))
+#define USBH_GET_URB_INTERVAL(interval, speed) (speed < USB_SPEED_HIGH ? (interval * 1000) : ((1 << (interval - 1)) * 125))
 
 #define USBH_EP_INIT(ep, ep_desc)                                            \
     do {                                                                     \
@@ -255,9 +255,10 @@ int usbh_control_transfer(struct usbh_hubport *hport, struct usb_setup_packet *s
  * @param hport Pointer to the USB hub port structure.
  * @param index Index of the string descriptor to retrieve.
  * @param output Pointer to the buffer where the retrieved descriptor will be stored.
+ * @param output_len Length of the output buffer.
  * @return On success will return 0, and others indicate fail.
  */
-int usbh_get_string_desc(struct usbh_hubport *hport, uint8_t index, uint8_t *output);
+int usbh_get_string_desc(struct usbh_hubport *hport, uint8_t index, uint8_t *output, uint16_t output_len);
 
 /**
  * @brief Sets the alternate setting for a USB interface on a specific hub port.

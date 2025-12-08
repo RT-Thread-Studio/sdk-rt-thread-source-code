@@ -146,10 +146,10 @@ contex_ns_store
 
     MRS     r1, psp                                 ; get from thread stack pointer
 
-#if defined (__VFP_FP__) && !defined(__SOFTFP__)
+    IF      {FPU} != "SoftVFP"
     TST     lr, #0x10                               ; if(!EXC_RETURN[4])
     VSTMFDEQ  r1!, {d8 - d15}                       ; push FPU register s16~s31
-#endif
+    ENDIF
 
     STMFD   r1!, {r4 - r11}                         ; push r4 - r11 register
 
@@ -190,10 +190,10 @@ switch_to_thread
 contex_ns_load
     LDMFD   r1!, {r4 - r11}                         ; pop r4 - r11 register
 
-#if defined (__VFP_FP__) && !defined(__SOFTFP__)
+    IF      {FPU} != "SoftVFP"
     TST     lr, #0x10                               ; if(!EXC_RETURN[4])
     VLDMFDEQ  r1!, {d8 - d15}                       ; pop FPU register s16~s31
-#endif
+    ENDIF
 
 pendsv_exit
     MSR     psp, r1                                 ; update stack pointer
@@ -215,12 +215,12 @@ rt_hw_context_switch_to    PROC
     LDR     r1, =rt_interrupt_to_thread
     STR     r0, [r1]
 
-#if defined (__VFP_FP__) && !defined(__SOFTFP__)
+    IF      {FPU} != "SoftVFP"
     ; CLEAR CONTROL.FPCA
     MRS     r2, CONTROL             ; read
     BIC     r2, #0x04               ; modify
     MSR     CONTROL, r2             ; write-back
-#endif
+    ENDIF
 
     ; set from thread to 0
     LDR     r1, =rt_interrupt_from_thread
@@ -272,11 +272,16 @@ rt_hw_interrupt_thread_switch PROC
 HardFault_Handler    PROC
 
     ; get current context
-    MRS     r0, msp                 ;get fault context from handler
-    TST     lr, #0x04               ;if(!EXC_RETURN[2])
+    MRS     r0, msp                 ; get fault context from handler
+    TST     lr, #0x04               ; if(!EXC_RETURN[2])
     BEQ     get_sp_done
-    MRS     r0, psp                 ;get fault context from thread
+    MRS     r0, psp                 ; get fault context from thread
 get_sp_done
+
+    IF      {FPU} != "SoftVFP"
+    TST     lr, #0x10               ; if(!EXC_RETURN[4])
+    VSTMFDEQ r0!, {d8 - d15}        ; push FPU register s16~s31
+    ENDIF
 
     STMFD   r0!, {r4 - r11}         ; push r4 - r11 register
 
