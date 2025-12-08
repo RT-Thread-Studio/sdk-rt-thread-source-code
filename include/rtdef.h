@@ -83,7 +83,7 @@ extern "C" {
 /* RT-Thread version information */
 #define RT_VERSION_MAJOR                5               /**< Major version number (X.x.x) */
 #define RT_VERSION_MINOR                2               /**< Minor version number (x.X.x) */
-#define RT_VERSION_PATCH                0               /**< Patch version number (x.x.X) */
+#define RT_VERSION_PATCH                1               /**< Patch version number (x.x.X) */
 
 /* e.g. #if (RTTHREAD_VERSION >= RT_VERSION_CHECK(4, 1, 0) */
 #define RT_VERSION_CHECK(major, minor, revise)          ((major * 10000U) + (minor * 100U) + revise)
@@ -251,6 +251,7 @@ typedef int (*init_fn_t)(void);
  * @def RT_ALIGN(size, align)
  * Return the most contiguous size aligned at specified width. RT_ALIGN(13, 4)
  * would return 16.
+ * @note align Must be an integer power of 2 or the result will be incorrect
  */
 #define RT_ALIGN(size, align)           (((size) + (align) - 1) & ~((align) - 1))
 
@@ -260,6 +261,7 @@ typedef int (*init_fn_t)(void);
  * @def RT_ALIGN_DOWN(size, align)
  * Return the down number of aligned at specified width. RT_ALIGN_DOWN(13, 4)
  * would return 12.
+ * @note align Must be an integer power of 2 or the result will be incorrect
  */
 #define RT_ALIGN_DOWN(size, align)      ((size) & ~((align) - 1))
 
@@ -540,7 +542,7 @@ struct rt_object_information
 #define RT_TIMER_CTRL_GET_FUNC          0x6             /**< get timer timeout func  */
 #define RT_TIMER_CTRL_SET_FUNC          0x7             /**< set timer timeout func  */
 #define RT_TIMER_CTRL_GET_PARM          0x8             /**< get timer parameter  */
-#define RT_TIMER_CTRL_SET_PARM          0x9             /**< get timer parameter  */
+#define RT_TIMER_CTRL_SET_PARM          0x9             /**< set timer parameter  */
 
 #ifndef RT_TIMER_SKIP_LIST_LEVEL
 #define RT_TIMER_SKIP_LIST_LEVEL          1
@@ -643,6 +645,7 @@ enum
 #define RT_THREAD_CTRL_CHANGE_PRIORITY  0x02                /**< Change thread priority. */
 #define RT_THREAD_CTRL_INFO             0x03                /**< Get thread information. */
 #define RT_THREAD_CTRL_BIND_CPU         0x04                /**< Set thread bind cpu. */
+#define RT_THREAD_CTRL_RESET_PRIORITY   0x05                /**< Reset thread priority. */
 
 /**
  * CPU usage statistics data
@@ -1234,7 +1237,7 @@ typedef struct rt_mempool *rt_mp_t;
 
 #ifdef RT_USING_DEVICE
 /**
- * @addtogroup group_Device
+ * @addtogroup group_device_driver
  */
 
 /**@{*/

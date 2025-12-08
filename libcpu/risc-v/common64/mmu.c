@@ -36,7 +36,7 @@
 #define USER_VADDR_START 0
 #endif
 
-static size_t _unmap_area(struct rt_aspace *aspace, void *v_addr, size_t size);
+static size_t _unmap_area(struct rt_aspace *aspace, void *v_addr);
 
 static void *current_mmu_table = RT_NULL;
 
@@ -198,7 +198,7 @@ void *rt_hw_mmu_map(struct rt_aspace *aspace, void *v_addr, void *p_addr,
             while (unmap_va != v_addr)
             {
                 MM_PGTBL_LOCK(aspace);
-                _unmap_area(aspace, unmap_va, ARCH_PAGE_SIZE);
+                _unmap_area(aspace, unmap_va);
                 MM_PGTBL_UNLOCK(aspace);
                 unmap_va += ARCH_PAGE_SIZE;
             }
@@ -245,8 +245,8 @@ static void _unmap_pte(rt_ubase_t *pentry, rt_ubase_t *lvl_entry[], int level)
     }
 }
 
-/* Unmaps a virtual address range from the page table. */
-static size_t _unmap_area(struct rt_aspace *aspace, void *v_addr, size_t size)
+/* Unmaps a virtual address range (1GB/2MB/4KB according to actual page level) from the page table. */
+static size_t _unmap_area(struct rt_aspace *aspace, void *v_addr)
 {
     rt_ubase_t loop_va = __UMASKVALUE((rt_ubase_t)v_addr, PAGE_OFFSET_MASK);
     size_t unmapped = 0;
@@ -263,10 +263,23 @@ static size_t _unmap_area(struct rt_aspace *aspace, void *v_addr, size_t size)
     lvl_entry[i] = ((rt_ubase_t *)aspace->page_table + lvl_off[i]);
     pentry = lvl_entry[i];
 
+    /* check if lvl_entry[0] is valid. if no, return 0 directly. */
+    if (!PTE_USED(*pentry))
+    {
+        return 0;
+    }
+
     /* find leaf page table entry */
     while (PTE_USED(*pentry) && !PAGE_IS_LEAF(*pentry))
     {
         i += 1;
+
+        if (i >= 3)
+        {
+            unmapped = 0;
+            break;
+        }
+
         lvl_entry[i] = ((rt_ubase_t *)PPN_TO_VPN(GET_PADDR(*pentry), PV_OFFSET) +
                         lvl_off[i]);
         pentry = lvl_entry[i];
@@ -277,6 +290,10 @@ static size_t _unmap_area(struct rt_aspace *aspace, void *v_addr, size_t size)
     if (PTE_USED(*pentry))
     {
         _unmap_pte(pentry, lvl_entry, i);
+    }
+    else
+    {
+        unmapped = 0; /* invalid pte, return 0. */
     }
 
     return unmapped;
@@ -315,7 +332,7 @@ void rt_hw_mmu_unmap(struct rt_aspace *aspace, void *v_addr, size_t size)
     while (size > 0)
     {
         MM_PGTBL_LOCK(aspace);
-        unmapped = _unmap_area(aspace, v_addr, size);
+        unmapped = _unmap_area(aspace, v_addr);
         MM_PGTBL_UNLOCK(aspace);
 
         /* when unmapped == 0, region not exist in pgtbl */
@@ -630,6 +647,21 @@ void rt_hw_mmu_setup(rt_aspace_t aspace, struct mem_desc *mdesc, int desc_nr)
 }
 
 #define SATP_BASE ((rt_ubase_t)SATP_MODE << SATP_MODE_OFFSET)
+
+extern unsigned int __bss_end;
+
+/**
+ * @brief Early memory setup function for hardware initialization.
+ *
+ * This function performs early memory setup tasks, including:
+ * - Calculating the physical-to-virtual (PV) offset.
+ * - Setting up initial page tables for identity mapping and text region relocation.
+ * - Applying new memory mappings by updating the SATP register.
+ *
+ * @note This function is typically called during the early stages of system initialization (startup_gcc.S),
+ *       before the memory management system is fully operational.
+ *       Here the identity mapping is implemented by a 1-stage page table, whose page size is 1GB.
+ */
 void rt_hw_mem_setup_early(void)
 {
     rt_ubase_t pv_off;
@@ -659,11 +691,13 @@ void rt_hw_mem_setup_early(void)
          * identical mapping,
          * PC are still at lower region before relocating to high memory
          */
-        for (size_t i = 0; i < __SIZE(PPN0_BIT); i++)
-        {
-            early_pgtbl[i] = COMBINEPTE(ps, MMU_MAP_EARLY);
-            ps += L1_PAGE_SIZE;
-        }
+        rt_ubase_t pg_idx ;
+        /* Round down symb_pc to L1_PAGE_SIZE boundary to ensure proper page alignment.
+         * This is necessary because MMU operations work with page-aligned addresses, and
+         * make sure all the text region is mapped.*/
+        ps = (rt_ubase_t)symb_pc & (~(L1_PAGE_SIZE - 1));
+        pg_idx = GET_L1(ps);
+        early_pgtbl[pg_idx] = COMBINEPTE(ps, MMU_MAP_EARLY);
 
         /* relocate text region */
         __asm__ volatile("la %0, _start\n" : "=r"(ps));

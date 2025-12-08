@@ -870,6 +870,7 @@ INPUT                  = . \
                          ../components/finsh \
                          ../components/drivers/include/drivers \
                          ../components/drivers/clk \
+                         ../components/drivers/audio \
                          ../components/dfs/dfs_v2/src \
                          ../components/dfs/dfs_v2/include
 
@@ -923,7 +924,7 @@ RECURSIVE              = YES
 EXCLUDE                = ./0.doxygen/mainpage.h \
                          ./2.quick-start/quick_start_qemu \
                          ./env/env-vscode.md \
-                         ./contribution_guide/coding_style_cn.md
+                         ./7.contribution/coding_style_cn.md
 
 # The EXCLUDE_SYMLINKS tag can be used to select whether or not files or
 # directories that are symbolic links (a Unix file system feature) are excluded
@@ -2240,7 +2241,8 @@ PREDEFINED             = RT_USING_SEMAPHORE \
                          FINSH_USING_DESCRIPTION \
                          RT_USING_FINSH \
                          RT_USING_HEAP \
-                         RT_USING_MODULE
+                         RT_USING_MODULE \
+                         RT_USING_SIGNALS
 
 # If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then this
 # tag can be used to specify a list of macro names that should be expanded. The
