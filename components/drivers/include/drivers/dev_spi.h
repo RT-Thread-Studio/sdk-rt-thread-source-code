@@ -8,6 +8,7 @@
  * 2012-11-23     Bernard      Add extern "C"
  * 2020-06-13     armink       fix the 3 wires issue
  * 2022-09-01     liYony       fix api rt_spi_sendrecv16 about MSB and LSB bug
+ * 2025-10-30     wdfk-prog    enable interrupt-safe operations using spinlocks
  */
 
 #ifndef __DEV_SPI_H__
@@ -160,6 +161,7 @@ struct rt_spi_configuration
 #endif
 
     rt_uint32_t max_hz;
+    rt_uint32_t usage_freq;
 };
 
 struct rt_spi_ops;
@@ -181,6 +183,10 @@ struct rt_spi_bus
 #endif /* RT_USING_DM */
 
     struct rt_mutex lock;
+#ifdef RT_USING_SPI_ISR
+    rt_base_t _isr_lvl;
+    struct rt_spinlock _spinlock;
+#endif /* RT_USING_SPI_ISR */
     struct rt_spi_device *owner;
 };
 

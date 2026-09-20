@@ -19,12 +19,17 @@
 
 #undef PAGE_SIZE
 
-/* C-SKY extend */
+/* XuanTie Extension (Bit 59-63) */
 #define PTE_SEC   (1UL << 59) /* Security */
 #define PTE_SHARE (1UL << 60) /* Shareable */
 #define PTE_BUF   (1UL << 61) /* Bufferable */
 #define PTE_CACHE (1UL << 62) /* Cacheable */
 #define PTE_SO    (1UL << 63) /* Strong Order */
+/* Compatible with Standard Svpbmt */
+#define PTE_PBMT_PMA  (PTE_CACHE | PTE_BUF | PTE_SHARE)
+#define PTE_PBMT_NC   (PTE_BUF | PTE_SHARE)
+#define PTE_PBMT_IO   (PTE_SO | PTE_SHARE)
+#define PTE_PBMT_MASK (PTE_PBMT_PMA | PTE_PBMT_IO | PTE_SEC)
 
 #define PAGE_OFFSET_SHIFT 0
 #define PAGE_OFFSET_BIT   12
@@ -68,8 +73,8 @@
 #define PAGE_DEFAULT_ATTR_LEAF                                         \
     (PTE_SHARE | PTE_BUF | PTE_CACHE | PTE_A | PTE_D | PTE_G | PTE_U | \
      PAGE_ATTR_RWX | PTE_V)
-#define PAGE_DEFAULT_ATTR_NEXT \
-    (PTE_SHARE | PTE_BUF | PTE_CACHE | PTE_A | PTE_D | PTE_G | PTE_V)
+
+#define PAGE_DEFAULT_ATTR_NEXT (PAGE_ATTR_NEXT_LEVEL | PTE_V | PTE_G)
 
 #define PAGE_IS_LEAF(pte) __MASKVALUE(pte, PAGE_ATTR_RWX)
 
@@ -99,6 +104,7 @@
 #define MMU_MAP_U_RW      PTE_WRAP(PTE_U | PAGE_ATTR_RWX | PTE_V)
 #define MMU_MAP_EARLY \
     PTE_WRAP(PAGE_ATTR_RWX | PTE_G | PTE_V | PTE_CACHE | PTE_SHARE | PTE_BUF)
+
 #define MMU_MAP_TRACE(attr) (attr)
 
 #define PTE_XWR_MASK 0xe

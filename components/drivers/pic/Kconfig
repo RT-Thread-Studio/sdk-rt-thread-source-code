@@ -8,7 +8,7 @@ menuconfig RT_USING_PIC
 config RT_USING_PIC_STATISTICS
     bool "Enable ISR execution time statistics"
     depends on RT_USING_PIC
-    depends on RT_USING_KTIME
+    depends on RT_USING_CLOCK_TIME
     depends on RT_USING_INTERRUPT_INFO
     default n
 
@@ -21,6 +21,13 @@ config MAX_HANDLERS
 config RT_PIC_ARM_GIC
     bool "ARM GICv2/v1"
     depends on RT_USING_PIC
+    select RT_USING_OFW
+    default n
+
+config RT_PIC_ARM_NVIC
+    bool "ARM Cortex-M NVIC"
+    depends on RT_USING_PIC
+    depends on ARCH_ARM_CORTEX_M
     select RT_USING_OFW
     default n
 

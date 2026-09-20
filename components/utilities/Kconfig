@@ -192,6 +192,14 @@ menuconfig RT_USING_ULOG
                 It will enable the log filter.
                 Such as level filter, log tag filter, log kw filter and tag's level filter.
 
+        config ULOG_USING_FINSH_CMD
+            bool "Enable ulog finsh/msh commands"
+            depends on ULOG_USING_FILTER && RT_USING_FINSH
+            default y
+            help
+                Enable this option to use ulog commands in finsh/msh,
+                such as ulog_lvl, ulog_tag, ulog_kw and so on.
+
         config ULOG_USING_SYSLOG
             bool "Enable syslog format log and API."
             select ULOG_OUTPUT_TIME
@@ -206,6 +214,7 @@ config RT_USING_UTEST
     if RT_USING_UTEST
         config UTEST_THR_STACK_SIZE
             int "The utest thread stack size"
+            default 8192 if ARCH_CPU_64BIT
             default 4096
         config UTEST_THR_PRIORITY
             int "The utest thread priority"
