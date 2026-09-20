@@ -186,6 +186,7 @@ rt_inline int _can_int_tx(struct rt_can_device *can, const struct rt_can_msg *da
         no = ((rt_ubase_t)tx_tosnd - (rt_ubase_t)tx_fifo->buffer) / sizeof(struct rt_can_sndbxinx_list);
         tx_tosnd->result = RT_CAN_SND_RESULT_WAIT;
         rt_completion_init(&tx_tosnd->completion);
+        can->status.sndchange |= 1<<no;
         if (can->ops->sendmsg(can, data, no) != RT_EOK)
         {
             /* send failed. */
@@ -196,7 +197,6 @@ rt_inline int _can_int_tx(struct rt_can_device *can, const struct rt_can_msg *da
             goto err_ret;
         }
 
-        can->status.sndchange |= 1<<no;
         if (rt_completion_wait(&(tx_tosnd->completion), RT_CANSND_MSG_TIMEOUT) != RT_EOK)
         {
             level = rt_hw_local_irq_disable();
@@ -286,11 +286,12 @@ rt_inline int _can_int_tx_priv(struct rt_can_device *can, const struct rt_can_ms
         tx_fifo->buffer[no].result = RT_CAN_SND_RESULT_WAIT;
         rt_hw_local_irq_enable(level);
 
+        can->status.sndchange |= 1<<no;
         if (can->ops->sendmsg(can, data, no) != RT_EOK)
         {
             continue;
         }
-        can->status.sndchange |= 1<<no;
+
         if (rt_completion_wait(&(tx_fifo->buffer[no].completion), RT_CANSND_MSG_TIMEOUT) != RT_EOK)
         {
             can->status.sndchange &= ~ (1<<no);
@@ -967,15 +968,19 @@ rt_err_t rt_hw_can_register(struct rt_can_device    *can,
  */
 void rt_hw_can_isr(struct rt_can_device *can, int event)
 {
+    rt_bool_t is_rxof_event = RT_FALSE;
+
     switch (event & 0xff)
     {
     case RT_CAN_EVENT_RXOF_IND:
     {
         rt_base_t level;
+        is_rxof_event = RT_TRUE;
         level = rt_hw_local_irq_disable();
         can->status.dropedrcvpkg++;
         rt_hw_local_irq_enable(level);
     }
+    /* FALLTHROUGH: RX overflow still tries to fetch one pending frame into software FIFO. */
     case RT_CAN_EVENT_RX_IND:
     {
         struct rt_can_msg tmpmsg;
@@ -1019,7 +1024,10 @@ void rt_hw_can_isr(struct rt_can_device *can, int event)
         else if (!rt_list_isempty(&rx_fifo->uselist))
         {
             listmsg = rt_list_entry(rx_fifo->uselist.next, struct rt_can_msg_list, list);
-            can->status.dropedrcvpkg++;
+            if (!is_rxof_event)
+            {
+                can->status.dropedrcvpkg++;
+            }
             rt_list_remove(&listmsg->list);
 #ifdef RT_CAN_USING_HDR
             rt_list_remove(&listmsg->hdrlist);

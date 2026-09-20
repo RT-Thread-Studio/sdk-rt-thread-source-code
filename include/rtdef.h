@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2024, RT-Thread Development Team
+ * Copyright (c) 2006-2025 RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -57,9 +57,10 @@
  * 2023-12-01     Shell        Support of dynamic device
  * 2023-12-18     xqyjlj       add rt_always_inline
  * 2023-12-22     Shell        Support hook list
- * 2024-01-18     Shell        Seperate basical types to a rttypes.h
- *                             Seperate the compiler portings to rtcompiler.h
+ * 2024-01-18     Shell        Separate basical types to a rttypes.h
+ *                             Separate the compiler portings to rtcompiler.h
  * 2024-03-30     Meco Man     update version number to v5.2.0
+ * 2025-11-10     Rbb666       update version number to v5.3.0
  */
 
 #ifndef __RT_DEF_H__
@@ -82,8 +83,8 @@ extern "C" {
 
 /* RT-Thread version information */
 #define RT_VERSION_MAJOR                5               /**< Major version number (X.x.x) */
-#define RT_VERSION_MINOR                2               /**< Minor version number (x.X.x) */
-#define RT_VERSION_PATCH                2               /**< Patch version number (x.x.X) */
+#define RT_VERSION_MINOR                3               /**< Minor version number (x.X.x) */
+#define RT_VERSION_PATCH                0               /**< Patch version number (x.x.X) */
 
 /* e.g. #if (RTTHREAD_VERSION >= RT_VERSION_CHECK(4, 1, 0) */
 #define RT_VERSION_CHECK(major, minor, revise)          ((major * 10000U) + (minor * 100U) + revise)
@@ -934,6 +935,8 @@ struct rt_thread
 #ifdef RT_USING_CPU_USAGE_TRACER
     rt_ubase_t                  user_time;              /**< Ticks on user */
     rt_ubase_t                  system_time;            /**< Ticks on system */
+    rt_ubase_t                  total_time_prev;        /**< Previous total ticks snapshot */
+    rt_uint8_t                  cpu_usage;              /**< Recent CPU usage in percent */
 #endif /* RT_USING_CPU_USAGE_TRACER */
 
 #ifdef RT_USING_MEM_PROTECTION
@@ -1374,6 +1377,9 @@ struct rt_device
     void *ofw_node;                                     /**< ofw node get from device tree */
 #endif /* RT_USING_OFW */
     void *power_domain_unit;
+#ifdef RT_USING_DVFS
+    void *dvfs_scaling;
+#endif
 #ifdef RT_USING_DMA
     const void *dma_ops;
 #endif

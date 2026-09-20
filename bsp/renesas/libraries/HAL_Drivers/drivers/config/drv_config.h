@@ -195,6 +195,32 @@ extern "C"
 
 #endif /* SOC_SERIES_R7FA8M85 */
 
+#ifdef SOC_SERIES_R7KA8P1
+
+#include "ra8/uart_config.h"
+
+#ifdef BSP_USING_PWM
+#include "ra8/pwm_config.h"
+#endif
+
+#ifdef BSP_USING_ADC
+#include "ra8/adc_config.h"
+#endif
+
+#ifdef BSP_USING_DAC
+#include "ra8/dac_config.h"
+#endif
+
+#ifdef BSP_USING_TIM
+#include "ra8/timer_config.h"
+#endif
+
+#ifdef BSP_USING_CANFD
+#include "ra8/canfd_config.h"
+#endif
+
+#endif /* SOC_SERIES_R7KA8P1 */
+
 #ifdef SOC_SERIES_R9A07G0
 #include "rzt/uart_config.h"
 #include "rzt/timer_config.h"
@@ -260,6 +286,16 @@ extern "C"
 #include "ra2a1/can_config.h"
 #endif
 #endif /* SOC_SERIES_R7FA2A1 */
+
+#if defined(SOC_FAMILY_RENESAS_RA_WIRELESS)
+#if defined(SOC_SERIES_R7SA6W1)
+#include "raw/ra6w1/uart_config.h"
+#ifdef BSP_USING_ADC
+#include "raw/ra6w1/adc_config.h"
+#endif
+
+#endif /* SOC_SERIES_R7SA6W1 */
+#endif /* SOC_FAMILY_RENESAS_RA_WIRELESS */
 
 #ifdef __cplusplus
 }

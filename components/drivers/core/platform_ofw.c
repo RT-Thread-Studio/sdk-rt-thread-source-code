@@ -6,6 +6,7 @@
  * Change Logs:
  * Date           Author       Notes
  * 2023-06-04     GuEe-GUI     the first version
+ * 2025-12-25     lhxj         fix OFW bus conflict and prevent duplicate device creation
  */
 
 #include <rtthread.h>
@@ -223,19 +224,25 @@ rt_err_t rt_platform_ofw_request(struct rt_ofw_node *np)
 
         if (dev)
         {
-            /* Was create */
-            if (dev->drv)
+            /*
+             * Device was already created (np->dev != NULL).
+             * - If it's already probed (dev->drv != NULL), nothing to do.
+             * - Retry only devices created by the OFW platform scanner. Other
+             *   devices belong to their native bus (e.g. I2C/SPI) and must not
+             *   be transferred to or probed through the platform bus.
+             */
+            if (!dev->drv && rt_ofw_node_test_flag(np, RT_OFW_F_PLATFORM))
             {
-                /* Was probe OK */
-                err = RT_EOK;
+                err = rt_bus_probe_device(dev);
             }
             else
             {
-                err = rt_bus_reload_driver_device(dev->bus, dev);
+                err = RT_EOK;
             }
         }
         else
         {
+            struct rt_ofw_node_id *id;
             struct rt_platform_device *pdev = alloc_ofw_platform_device(np);
 
             if (pdev)
@@ -245,6 +252,16 @@ rt_err_t rt_platform_ofw_request(struct rt_ofw_node *np)
                 LOG_D("%s register to bus", np->full_name);
 
                 err = rt_platform_device_register(pdev);
+
+                if (!err && np->child && (id = rt_ofw_node_match(np, platform_ofw_ids)))
+                {
+                    rt_err_t sub_err;
+
+                    if ((sub_err = platform_ofw_device_probe_once(np)))
+                    {
+                        LOG_W("%s child platform device probe failed", np->full_name);
+                    }
+                }
             }
             else
             {
@@ -267,6 +284,12 @@ static int platform_ofw_device_probe(void)
 
     if (ofw_node_root)
     {
+        if ((node = rt_ofw_find_node_by_path("/clocks")))
+        {
+            platform_ofw_device_probe_once(node);
+            rt_ofw_node_put(node);
+        }
+
         rt_ofw_node_get(ofw_node_root);
 
         err = platform_ofw_device_probe_once(ofw_node_root);
@@ -274,12 +297,6 @@ static int platform_ofw_device_probe(void)
         rt_ofw_node_put(ofw_node_root);
 
         if ((node = rt_ofw_find_node_by_path("/firmware")))
-        {
-            platform_ofw_device_probe_once(node);
-            rt_ofw_node_put(node);
-        }
-
-        if ((node = rt_ofw_find_node_by_path("/clocks")))
         {
             platform_ofw_device_probe_once(node);
             rt_ofw_node_put(node);
